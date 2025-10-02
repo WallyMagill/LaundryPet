@@ -10,8 +10,8 @@ import SwiftData
 
 struct ContentView: View {
     var body: some View {
-        // Phase 1 Testing - Will be replaced with real UI in Phase 2
-        TestModelsView()
+        // Phase 2 Testing - Will be replaced with real UI in Phase 3
+        TestViewModelsView()
     }
 }
 
