@@ -94,9 +94,10 @@ final class PetsViewModel: ObservableObject {
     /// - Parameters:
     ///   - name: The name for the new pet
     ///   - cycleFrequencyDays: How often the pet needs laundry (default: 7 days)
-    func createPet(name: String, cycleFrequencyDays: Int = 7) {
+    /// - Returns: The newly created pet, or nil if creation failed
+    func createPet(name: String, cycleFrequencyDays: Int = 7) -> Pet? {
         // Use pet service to create the pet
-        guard petService.createPet(name: name, cycleFrequencyDays: cycleFrequencyDays) != nil else {
+        guard let newPet = petService.createPet(name: name, cycleFrequencyDays: cycleFrequencyDays) else {
             // Pet creation failed - service already logged the error
             print("❌ Operation failed: Pet creation returned nil")
             
@@ -106,11 +107,14 @@ final class PetsViewModel: ObservableObject {
             // Trigger error alert
             self.showError = true
             
-            return
+            return nil
         }
         
         // Pet created successfully, reload the pets list
         loadPets()
+        
+        // Return the created pet for immediate use
+        return newPet
     }
     
     /// Deletes a pet and removes it from the collection
