@@ -1,0 +1,92 @@
+graph TD
+    Start([User Opens App]) --> FirstLaunch{First<br/>Launch?}
+    
+    FirstLaunch -->|Yes| Onboard1[Welcome Screen<br/>Value Proposition]
+    FirstLaunch -->|No| HasPets{Has<br/>Pets?}
+    
+    Onboard1 --> Onboard2[How It Works<br/>3 Simple Steps]
+    Onboard2 --> NotifPerm[Request Notifications<br/>With Context]
+    NotifPerm --> CreateFirst[Create First Pet<br/>Name Entry]
+    CreateFirst --> Dashboard
+    
+    HasPets -->|Yes| Dashboard[Pet Dashboard<br/>Grid View]
+    HasPets -->|No| WelcomeBack[Welcome Back Screen<br/>Create New Pet]
+    WelcomeBack --> CreateFirst
+    
+    Dashboard --> SelectPet{User<br/>Action?}
+    
+    SelectPet -->|Tap Pet| PetDetail[Pet Detail View<br/>Timer Controls]
+    SelectPet -->|+ Button| CreatePet[Create New Pet]
+    SelectPet -->|Settings| AppSettings[App Settings]
+    
+    CreatePet --> Dashboard
+    AppSettings --> Dashboard
+    
+    PetDetail --> PetAction{Pet<br/>State?}
+    
+    PetAction -->|Idle| StartWash[Start Wash Button<br/>30 min timer]
+    PetAction -->|Washing| WashWait[Wash Timer Active<br/>Countdown Display]
+    PetAction -->|Drying| DryWait[Dry Timer Active<br/>Countdown Display]
+    PetAction -->|Ready to Fold| Fold[Tap to Fold<br/>Instant Complete]
+    
+    StartWash --> SaveTimer[Save Timer State<br/>UserDefaults]
+    SaveTimer --> ScheduleNotif[Schedule Notification<br/>Wash Complete]
+    ScheduleNotif --> WashWait
+    
+    WashWait --> WashDone{Timer<br/>Complete?}
+    WashDone -->|Time Up| NotifWash[📱 Notification<br/>Wash Complete]
+    WashDone -->|Still Running| WashWait
+    
+    NotifWash --> UserReturn1{User<br/>Returns?}
+    UserReturn1 -->|Yes| StartDry[Start Dry Button<br/>60 min timer]
+    UserReturn1 -->|No| WashWait
+    
+    StartDry --> SaveTimer2[Save Timer State<br/>UserDefaults]
+    SaveTimer2 --> ScheduleNotif2[Schedule Notification<br/>Dry Complete]
+    ScheduleNotif2 --> DryWait
+    
+    DryWait --> DryDone{Timer<br/>Complete?}
+    DryDone -->|Time Up| NotifDry[📱 Notification<br/>Dry Complete]
+    DryDone -->|Still Running| DryWait
+    
+    NotifDry --> UserReturn2{User<br/>Returns?}
+    UserReturn2 -->|Yes| Fold
+    UserReturn2 -->|No| DryWait
+    
+    Fold --> Celebrate{First<br/>Cycle?}
+    Celebrate -->|Yes| FirstComplete[🎉 Celebration Screen<br/>First Cycle Complete!]
+    Celebrate -->|No| UpdateStats[Update Pet Stats<br/>Health, Streak, Cycles]
+    
+    FirstComplete --> UpdateStats
+    UpdateStats --> UpdateHealth[Health → 100%<br/>State → Happy]
+    UpdateHealth --> ClearNotif[Clear Notifications<br/>Remove Badge]
+    ClearNotif --> Dashboard
+    
+    WashWait -.Background.-> AppClose1[App Closed/<br/>Backgrounded]
+    DryWait -.Background.-> AppClose2[App Closed/<br/>Backgrounded]
+    
+    AppClose1 --> Persist1[Timer Persists<br/>UserDefaults]
+    AppClose2 --> Persist2[Timer Persists<br/>UserDefaults]
+    
+    Persist1 -.Notification.-> NotifWash
+    Persist2 -.Notification.-> NotifDry
+    
+    NotifWash -.Tap.-> Reopen1[App Reopens]
+    NotifDry -.Tap.-> Reopen2[App Reopens]
+    
+    Reopen1 --> Restore1[Restore Timer State<br/>From UserDefaults]
+    Reopen2 --> Restore2[Restore Timer State<br/>From UserDefaults]
+    
+    Restore1 --> PetDetail
+    Restore2 --> PetDetail
+    
+    style Start fill:#3399FF,color:#fff
+    style Dashboard fill:#3399FF,color:#fff
+    style NotifWash fill:#66CCFF,color:#000
+    style NotifDry fill:#FFCC33,color:#000
+    style Fold fill:#9966FF,color:#fff
+    style FirstComplete fill:#33CC66,color:#fff
+    style UpdateHealth fill:#33CC66,color:#fff
+    style Celebrate fill:#FF9933,color:#fff
+    style AppClose1 fill:#FF4D4D,color:#fff
+    style AppClose2 fill:#FF4D4D,color:#fff

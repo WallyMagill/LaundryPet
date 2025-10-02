@@ -1,0 +1,228 @@
+graph TB
+    subgraph PresentationLayer["🎨 PRESENTATION LAYER - SwiftUI Views"]
+        direction TB
+        
+        Dashboard[PetDashboardView<br/>Grid of Pet Cards<br/>+ Create Pet Button]
+        PetDetail[PetView<br/>Single Pet Detail<br/>Timer Controls]
+        PetSettings[PetSettingsView<br/>Per-Pet Configuration]
+        AppSettings[AppSettingsView<br/>Global Settings]
+        Onboarding[OnboardingFlow<br/>First Launch Experience]
+        Components[Reusable Components<br/>Buttons, Cards, Banners]
+        
+        Dashboard --> PetDetail
+        Dashboard --> PetSettings
+        Dashboard --> AppSettings
+        PetDetail --> Components
+    end
+    
+    subgraph ViewModelLayer["🎯 VIEW MODEL LAYER - Business Logic"]
+        direction TB
+        
+        PetsVM[PetsViewModel<br/>@ObservableObject<br/>Manages Pet Collection]
+        PetVM_A[PetViewModel A<br/>@ObservableObject<br/>Pet ID: abc-123]
+        PetVM_B[PetViewModel B<br/>@ObservableObject<br/>Pet ID: def-456]
+        SettingsVM[SettingsViewModel<br/>@ObservableObject<br/>Global Configuration]
+        
+        PetsVM -.Creates.-> PetVM_A
+        PetsVM -.Creates.-> PetVM_B
+    end
+    
+    subgraph ServiceLayer["⚙️ SERVICE LAYER - Core Business Logic"]
+        direction TB
+        
+        PetService[PetService<br/>CRUD Operations<br/>Health Calculations]
+        
+        TimerService_A[PetTimerService A<br/>Instance for Pet abc-123<br/>endTime, isActive]
+        TimerService_B[PetTimerService B<br/>Instance for Pet def-456<br/>endTime, isActive]
+        
+        SimpleTimer[SimpleTimerService<br/>Singleton<br/>Global Health Broadcasts]
+        
+        NotifService[NotificationService<br/>Singleton<br/>Scheduling & Permissions]
+        
+        HealthService[HealthUpdateService<br/>Singleton<br/>Decay Calculations]
+        
+        PetVM_A -.Owns.-> TimerService_A
+        PetVM_B -.Owns.-> TimerService_B
+        
+        SimpleTimer -.Broadcasts.-> PetVM_A
+        SimpleTimer -.Broadcasts.-> PetVM_B
+    end
+    
+    subgraph DataLayer["🗄️ DATA LAYER - SwiftData Persistence"]
+        direction TB
+        
+        ModelContext[ModelContext<br/>SwiftData Context<br/>Main Thread]
+        
+        PetModel_A[(Pet A<br/>id: abc-123<br/>name: Fluffy<br/>health: 85<br/>state: washing)]
+        
+        PetModel_B[(Pet B<br/>id: def-456<br/>name: Buddy<br/>health: 100<br/>state: idle)]
+        
+        TaskModel_A[(LaundryTask A<br/>petID: abc-123<br/>stage: washing<br/>washStartTime)]
+        
+        SettingsModel[(AppSettings<br/>notifications: true<br/>sounds: true<br/>theme: system)]
+        
+        ModelContext --> PetModel_A
+        ModelContext --> PetModel_B
+        ModelContext --> TaskModel_A
+        ModelContext --> SettingsModel
+    end
+    
+    subgraph SystemLayer["🔧 SYSTEM LAYER - iOS Frameworks"]
+        direction TB
+        
+        UserDefaults[UserDefaults<br/>Timer Persistence<br/>pet_timer_abc-123<br/>pet_timer_def-456]
+        
+        UNCenter[UNUserNotificationCenter<br/>iOS Notification System<br/>64 Pending Limit]
+        
+        Combine[Combine Framework<br/>Timer.publish<br/>@Published Properties]
+        
+        Foundation[Foundation Framework<br/>Date, Calendar, UUID<br/>JSONEncoder/Decoder]
+    end
+    
+    subgraph DataFlow["📊 DATA FLOW PATTERNS"]
+        direction LR
+        
+        F1[User Interaction] --> F2[View]
+        F2 --> F3[ViewModel]
+        F3 --> F4[Service]
+        F4 --> F5[Data Layer]
+        F5 --> F6[SwiftData Save]
+        F6 --> F7[Update UI]
+        F7 --> F8[View Refresh]
+    end
+    
+    subgraph TimerFlow["⏱️ TIMER FLOW"]
+        direction LR
+        
+        T1[Start Timer] --> T2[PetViewModel]
+        T2 --> T3[PetTimerService]
+        T3 --> T4[Calculate endTime]
+        T4 --> T5[Save to UserDefaults]
+        T5 --> T6[Schedule Notification]
+        T6 --> T7[Start Combine Timer]
+        T7 --> T8[Update every 0.5s]
+        T8 --> T9[Check completion]
+    end
+    
+    subgraph NotificationFlow["🔔 NOTIFICATION FLOW"]
+        direction LR
+        
+        N1[Timer Complete] --> N2[Cancel Combine Timer]
+        N2 --> N3[Clear UserDefaults]
+        N3 --> N4[iOS Delivers Notification]
+        N4 --> N5[User Taps Notification]
+        N5 --> N6[App Opens]
+        N6 --> N7[Navigate to Pet]
+        N7 --> N8[Show Next Stage]
+    end
+    
+    subgraph HealthFlow["💚 HEALTH DECAY FLOW"]
+        direction LR
+        
+        H1[SimpleTimerService<br/>30s Broadcast] --> H2[All PetViewModels<br/>Receive Event]
+        H2 --> H3[HealthUpdateService<br/>Calculate Each Pet]
+        H3 --> H4[Update Pet Health<br/>Update Pet State]
+        H4 --> H5[Save to Database<br/>If Changed]
+        H5 --> H6[UI Auto-Updates<br/>@Published Properties]
+    end
+    
+    %% Connections between layers
+    Dashboard --> PetsVM
+    PetDetail --> PetVM_A
+    PetDetail --> PetVM_B
+    AppSettings --> SettingsVM
+    
+    PetsVM --> PetService
+    PetVM_A --> PetService
+    PetVM_B --> PetService
+    PetVM_A --> TimerService_A
+    PetVM_B --> TimerService_B
+    SettingsVM --> NotifService
+    
+    PetService --> ModelContext
+    SettingsVM --> ModelContext
+    
+    TimerService_A --> UserDefaults
+    TimerService_B --> UserDefaults
+    TimerService_A --> NotifService
+    TimerService_B --> NotifService
+    
+    NotifService --> UNCenter
+    SimpleTimer --> Combine
+    TimerService_A --> Combine
+    TimerService_B --> Combine
+    HealthService --> Foundation
+    
+    subgraph Independence["🛡️ INDEPENDENCE GUARANTEES"]
+        direction TB
+        
+        I1["✅ Each Pet Has Own ViewModel"]
+        I2["✅ Each Pet Has Own TimerService"]
+        I3["✅ Unique UserDefaults Keys per Pet"]
+        I4["✅ Unique Notification IDs per Pet"]
+        I5["✅ Separate Database Records"]
+        I6["✅ Independent Settings per Pet"]
+        I7["✅ No Shared Mutable State"]
+        I8["✅ Complete Isolation"]
+        
+        I1 --> I2
+        I2 --> I3
+        I3 --> I4
+        I4 --> I5
+        I5 --> I6
+        I6 --> I7
+        I7 --> I8
+    end
+    
+    subgraph KeyPatterns["🎯 KEY ARCHITECTURAL PATTERNS"]
+        direction TB
+        
+        P1["MVVM: View-ViewModel-Model Separation"]
+        P2["Service Layer: Shared Business Logic"]
+        P3["Dependency Injection: Pass ModelContext"]
+        P4["Combine: Reactive Updates"]
+        P5["SwiftData: Automatic Persistence"]
+        P6["Per-Instance Services: Multi-Pet Isolation"]
+        P7["Absolute Time: Background Reliability"]
+        P8["UserDefaults: Simple State Persistence"]
+        
+        P1 --> P2
+        P2 --> P3
+        P3 --> P4
+        P4 --> P5
+        P5 --> P6
+        P6 --> P7
+        P7 --> P8
+    end
+    
+    subgraph ErrorHandling["❌ ERROR HANDLING STRATEGY"]
+        direction TB
+        
+        E1["Database: do-catch with user feedback"]
+        E2["Timers: Corruption detection & reset"]
+        E3["Notifications: Graceful degradation"]
+        E4["Storage: Proactive space checking"]
+        E5["All Errors: Log + User-Friendly Messages"]
+        E6["No Silent Failures: Always inform user"]
+        
+        E1 --> E2
+        E2 --> E3
+        E3 --> E4
+        E4 --> E5
+        E5 --> E6
+    end
+    
+    style Dashboard fill:#3399FF,color:#fff
+    style PetDetail fill:#3399FF,color:#fff
+    style PetsVM fill:#9966FF,color:#fff
+    style PetVM_A fill:#9966FF,color:#fff
+    style PetVM_B fill:#9966FF,color:#fff
+    style PetService fill:#FF9933,color:#fff
+    style TimerService_A fill:#FF9933,color:#fff
+    style TimerService_B fill:#FF9933,color:#fff
+    style SimpleTimer fill:#FFCC33,color:#000
+    style NotifService fill:#66CCFF,color:#000
+    style ModelContext fill:#33CC66,color:#fff
+    style PetModel_A fill:#33CC66,color:#fff
+    style PetModel_B fill:#33CC66,color:#fff
+    style I8 fill:#33CC66,color:#fff

@@ -1,0 +1,231 @@
+graph TD
+    AppLaunch([App Launch]) --> DetectVersion{Detect<br/>Version}
+    
+    DetectVersion -->|First Install| V1Install[Fresh Install<br/>V1.0 Schema]
+    DetectVersion -->|Same Version| NormalStart[Normal App Start<br/>Load Data]
+    DetectVersion -->|Version Update| VersionCheck{Version<br/>Change?}
+    
+    VersionCheck -->|V1.0 → V1.0.x| PatchUpdate[Patch Update<br/>No Migration Needed]
+    VersionCheck -->|V1.x → V2.0| MajorMigration[Major Update<br/>Migration Required]
+    
+    V1Install --> InitSchema[Initialize V1 Schema]
+    
+    subgraph SchemaV1["📊 Schema V1.0 Structure"]
+        V1Models[SwiftData Models]
+        V1Pet[Pet Model<br/>- id: UUID<br/>- name: String<br/>- health: Int?<br/>- state: PetState<br/>- cyclesCompleted: Int<br/>- streaks: Int<br/>- settings: per-pet]
+        V1Task[LaundryTask Model<br/>- id: UUID<br/>- petID: UUID<br/>- stage: LaundryStage<br/>- timestamps<br/>- durations]
+        V1Settings[AppSettings Model<br/>- notifications: Bool<br/>- sounds: Bool<br/>- appearance: Mode]
+        
+        V1Models --> V1Pet
+        V1Models --> V1Task
+        V1Models --> V1Settings
+    end
+    
+    InitSchema --> CreateContainer[Create ModelContainer<br/>SwiftData]
+    PatchUpdate --> LoadExisting[Load Existing Data<br/>No Changes]
+    
+    MajorMigration --> PreMigration[Pre-Migration Checks]
+    
+    subgraph MigrationProcess["🔄 Migration Process"]
+        PreMigration --> Backup[Create Backup<br/>Copy Database File]
+        Backup --> BackupSuccess{Backup<br/>Success?}
+        
+        BackupSuccess -->|Yes| SetFlag[Set Migration Flag<br/>UserDefaults]
+        BackupSuccess -->|No| BackupFail[❌ Backup Failed<br/>Cannot Migrate Safely]
+        
+        BackupFail --> AbortMigration[Abort Migration<br/>Stay on Old Version]
+        AbortMigration --> ShowError1[Show Error Alert<br/>Contact Support]
+        
+        SetFlag --> ValidateData[Validate Existing Data<br/>Check Integrity]
+        ValidateData --> DataValid{Data<br/>Valid?}
+        
+        DataValid -->|Valid| BeginMigration[Begin Migration<br/>Execute Plan]
+        DataValid -->|Invalid| DataCorrupt[❌ Data Corrupted<br/>Attempt Repair]
+        
+        DataCorrupt --> RepairData[Auto-Repair<br/>Fix Known Issues]
+        RepairData --> RepairSuccess{Repair<br/>Success?}
+        
+        RepairSuccess -->|Yes| BeginMigration
+        RepairSuccess -->|No| OfferRollback[Offer Restore Backup<br/>Or Reset Data]
+        
+        OfferRollback --> UserDecision1{User<br/>Choice?}
+        UserDecision1 -->|Restore| RestoreBackup1[Restore from Backup]
+        UserDecision1 -->|Reset| ResetData[Delete All Data<br/>Fresh Start]
+        
+        RestoreBackup1 --> NormalStart
+        ResetData --> V1Install
+        
+        BeginMigration --> V2Migration
+    end
+    
+    subgraph V1toV2Migration["🔄 V1 → V2 Migration Example"]
+        V2Migration[Execute V2 Migration Plan]
+        
+        V2Migration --> AddFields[Add New Fields<br/>colorTheme: String?<br/>characterType: String?]
+        
+        AddFields --> SetDefaults[Set Default Values<br/>For All Existing Pets]
+        
+        SetDefaults --> CreateNewModels[Create New Models<br/>Achievement Model]
+        
+        CreateNewModels --> TransformData[Transform Existing Data<br/>If Needed]
+        
+        TransformData --> ValidateTransform{Transform<br/>Success?}
+        
+        ValidateTransform -->|Yes| SaveMigrated[Save Migrated Data<br/>Commit Changes]
+        ValidateTransform -->|No| MigrationError[❌ Migration Failed<br/>Rollback]
+        
+        MigrationError --> RestoreBackup2[Restore from Backup]
+        RestoreBackup2 --> ShowError2[Show Error Alert<br/>Try Again or Reset]
+        ShowError2 --> UserDecision2{User<br/>Choice?}
+        
+        UserDecision2 -->|Retry| V2Migration
+        UserDecision2 -->|Restore| NormalStart
+        UserDecision2 -->|Reset| ResetData
+        
+        SaveMigrated --> VerifyMigration[Verify Migration<br/>Test Queries]
+        VerifyMigration --> VerifySuccess{Verify<br/>Success?}
+        
+        VerifySuccess -->|Yes| CleanupOld[Cleanup Old Data<br/>Remove Deprecated Fields]
+        VerifySuccess -->|No| MigrationError
+        
+        CleanupOld --> UpdateVersion[Update Version Flag<br/>Mark Migration Complete]
+        UpdateVersion --> ClearFlag[Clear Migration Flag<br/>UserDefaults]
+        ClearFlag --> V2Complete[✅ Migration Complete]
+    end
+    
+    V2Complete --> LoadMigrated[Load V2 Data<br/>New Schema]
+    LoadExisting --> LoadData[Load from Database]
+    LoadMigrated --> LoadData
+    CreateContainer --> LoadData
+    
+    subgraph DataLoading["📥 Data Loading"]
+        LoadData --> CreateContext[Create ModelContext<br/>Main Thread]
+        CreateContext --> FetchPets[Fetch All Active Pets<br/>FetchDescriptor]
+        FetchPets --> FetchSuccess{Fetch<br/>Success?}
+        
+        FetchSuccess -->|Yes| ValidateRecords[Validate Records<br/>Check Required Fields]
+        FetchSuccess -->|No| FetchError[❌ Fetch Failed<br/>Database Error]
+        
+        FetchError --> RetryFetch{Retry<br/>Count?}
+        RetryFetch -->|< 3| FetchPets
+        RetryFetch -->|≥ 3| EmptyState[Show Empty State<br/>No Pets Available]
+        
+        ValidateRecords --> RecordsValid{All<br/>Valid?}
+        RecordsValid -->|Yes| DataReady[✅ Data Ready<br/>Populate UI]
+        RecordsValid -->|No| RepairRecords[Repair Invalid Records<br/>Set Defaults]
+        
+        RepairRecords --> DataReady
+        EmptyState --> DataReady
+    end
+    
+    DataReady --> RestoreTimers[Restore Active Timers<br/>From UserDefaults]
+    
+    subgraph TimerRestoration["⏱️ Timer State Restoration"]
+        RestoreTimers --> ForEachPet[For Each Pet]
+        ForEachPet --> CheckTimerKey[Check UserDefaults<br/>Key: pet_timer_petID]
+        CheckTimerKey --> TimerExists{Timer<br/>State?}
+        
+        TimerExists -->|No| NextPet[Next Pet]
+        TimerExists -->|Yes| DecodeTimer[Decode Timer State<br/>JSON]
+        
+        DecodeTimer --> DecodeOK{Decode<br/>Success?}
+        DecodeOK -->|Yes| ValidateTimer[Validate Timer<br/>Check Dates]
+        DecodeOK -->|No| ClearTimer[Clear Corrupt Timer<br/>Remove Key]
+        
+        ValidateTimer --> TimerValid{Timer<br/>Valid?}
+        TimerValid -->|Yes| CheckExpired{Already<br/>Expired?}
+        TimerValid -->|No| ClearTimer
+        
+        CheckExpired -->|Yes| CompleteImmediate[Mark Stage Complete<br/>Advance State]
+        CheckExpired -->|No| RestoreActive[Restore Active Timer<br/>Start Countdown]
+        
+        ClearTimer --> NextPet
+        CompleteImmediate --> NextPet
+        RestoreActive --> NextPet
+        
+        NextPet --> MorePets{More<br/>Pets?}
+        MorePets -->|Yes| ForEachPet
+        MorePets -->|No| RestoreComplete[✅ All Timers Restored]
+    end
+    
+    RestoreComplete --> RestoreNotifications[Restore Notifications<br/>Check Pending]
+    
+    subgraph NotificationRestoration["🔔 Notification State Check"]
+        RestoreNotifications --> GetPending[Get Pending Notifications<br/>From iOS]
+        GetPending --> CleanExpired[Remove Expired<br/>Older than Trigger Time]
+        CleanExpired --> UpdateBudget[Update Budget Manager<br/>Count = pending.count]
+        UpdateBudget --> NotifReady[✅ Notifications Ready]
+    end
+    
+    NotifReady --> HealthUpdate[Schedule Health Updates<br/>Start Global Timer]
+    
+    subgraph HealthUpdateSystem["💚 Health Update System"]
+        HealthUpdate --> StartGlobalTimer[Start SimpleTimerService<br/>30 Second Intervals]
+        StartGlobalTimer --> Broadcast[Broadcast Update Event]
+        Broadcast --> AllPets[All PetViewModels Listen]
+        AllPets --> CalculateHealth[Calculate Health<br/>For Each Pet]
+        CalculateHealth --> UpdateStates[Update Pet States<br/>If Changed]
+        UpdateStates --> SaveChanges[Save to Database<br/>If Needed]
+        SaveChanges --> HealthReady[✅ Health System Active]
+    end
+    
+    HealthReady --> AppReady[✅ App Ready<br/>Show Dashboard]
+    
+    subgraph ContinuousPersistence["💾 Continuous Persistence"]
+        AppReady --> UserInteraction[User Interactions]
+        
+        UserInteraction --> DataChange{Data<br/>Changed?}
+        DataChange -->|Pet Created| SavePet[Insert Pet<br/>modelContext.save]
+        DataChange -->|Pet Updated| UpdatePet[Update Pet<br/>modelContext.save]
+        DataChange -->|Pet Deleted| DeletePet[Delete Pet + Tasks<br/>modelContext.save]
+        DataChange -->|Timer Changed| SaveTimer[Save to UserDefaults<br/>Timer State]
+        DataChange -->|Settings Changed| SaveSettings[Update AppSettings<br/>modelContext.save]
+        DataChange -->|No Change| Continue[Continue]
+        
+        SavePet --> Autosave
+        UpdatePet --> Autosave
+        DeletePet --> Autosave
+        SaveSettings --> Autosave
+        SaveTimer --> UserInteraction
+        
+        Autosave[Automatic Save<br/>SwiftData Handles]
+        Autosave --> SaveResult{Save<br/>Success?}
+        SaveResult -->|Yes| Continue
+        SaveResult -->|No| ErrorHandle[Handle Error<br/>See Error Flow]
+        ErrorHandle --> Continue
+        Continue --> UserInteraction
+    end
+    
+    subgraph BackupSchedule["📅 Backup Schedule"]
+        B1[Daily Backup Trigger<br/>Check Last Backup Date]
+        B2[On App Launch<br/>Before Migrations]
+        B3[Manual Backup<br/>Settings Option]
+        
+        B1 --> CreateBackup[Create Database Backup<br/>Copy to Backups Folder]
+        B2 --> CreateBackup
+        B3 --> CreateBackup
+        
+        CreateBackup --> BackupResult{Backup<br/>Success?}
+        BackupResult -->|Yes| CleanOldBackups[Keep Most Recent 3<br/>Delete Older]
+        BackupResult -->|No| LogBackupError[Log Backup Error<br/>Continue Anyway]
+    end
+    
+    subgraph FutureVersions["🔮 Future Version Examples"]
+        FV1[V2.0 → V3.0<br/>Add Statistics Entity<br/>Move Stats from Pet]
+        FV2[V3.0 → V4.0<br/>Add iCloud Sync<br/>Add Sync Metadata]
+        FV3[All Follow Same Pattern<br/>Backup → Validate → Migrate → Verify]
+    end
+    
+    style AppLaunch fill:#3399FF,color:#fff
+    style MajorMigration fill:#FF9933,color:#fff
+    style Backup fill:#9966FF,color:#fff
+    style BackupFail fill:#FF4D4D,color:#fff
+    style DataCorrupt fill:#FF4D4D,color:#fff
+    style MigrationError fill:#FF4D4D,color:#fff
+    style V2Complete fill:#33CC66,color:#fff
+    style DataReady fill:#33CC66,color:#fff
+    style RestoreComplete fill:#33CC66,color:#fff
+    style NotifReady fill:#33CC66,color:#fff
+    style HealthReady fill:#33CC66,color:#fff
+    style AppReady fill:#33CC66,color:#fff
+    style CreateBackup fill:#9966FF,color:#fff

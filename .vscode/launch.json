@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch LaundryPets (iOS Simulator)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/Debug-iphonesimulator/LaundryPets.app",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build iOS Debug",
+      "console": "internalConsole"
+    },
+    {
+      "name": "Attach to Process",
+      "type": "lldb",
+      "request": "attach",
+      "program": "${workspaceFolder}/build/Debug-iphonesimulator/LaundryPets.app"
+    }
+  ]
+}
+

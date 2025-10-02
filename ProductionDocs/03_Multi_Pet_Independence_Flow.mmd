@@ -1,0 +1,99 @@
+graph TB
+    subgraph Dashboard["🏠 Pet Dashboard"]
+        PetA[Pet A: Fluffy<br/>Health: 85%<br/>Status: Washing]
+        PetB[Pet B: Buddy<br/>Health: 100%<br/>Status: Idle]
+        PetC[Pet C: Snowy<br/>Health: 40%<br/>Status: Drying]
+    end
+    
+    subgraph ViewModelLayer["🎯 ViewModel Layer"]
+        VMdash[PetsViewModel<br/>Manages Collection]
+        VMA[PetViewModel A<br/>petID: abc-123]
+        VMB[PetViewModel B<br/>petID: def-456]
+        VMC[PetViewModel C<br/>petID: ghi-789]
+        
+        VMdash -.Creates.-> VMA
+        VMdash -.Creates.-> VMB
+        VMdash -.Creates.-> VMC
+    end
+    
+    subgraph TimerLayer["⏱️ Timer Service Layer"]
+        TimerA[PetTimerService A<br/>petID: abc-123<br/>endTime: 14:30<br/>type: wash]
+        TimerB[PetTimerService B<br/>INACTIVE]
+        TimerC[PetTimerService C<br/>petID: ghi-789<br/>endTime: 15:00<br/>type: dry]
+        
+        VMA -.Owns.-> TimerA
+        VMB -.Owns.-> TimerB
+        VMC -.Owns.-> TimerC
+    end
+    
+    subgraph PersistenceLayer["💾 UserDefaults Persistence"]
+        UDA["Key: pet_timer_abc-123<br/>{endTime: 14:30, type: wash}"]
+        UDB["Key: pet_timer_def-456<br/>NO DATA"]
+        UDC["Key: pet_timer_ghi-789<br/>{endTime: 15:00, type: dry}"]
+        
+        TimerA <-.Save/Load.-> UDA
+        TimerB <-.Save/Load.-> UDB
+        TimerC <-.Save/Load.-> UDC
+    end
+    
+    subgraph NotificationLayer["🔔 iOS Notifications"]
+        NotifA["ID: timer_abc-123_wash<br/>Scheduled: 14:30<br/>Title: Fluffy's wash complete"]
+        NotifB["NO NOTIFICATION"]
+        NotifC["ID: timer_ghi-789_dry<br/>Scheduled: 15:00<br/>Title: Snowy's dry complete"]
+        
+        TimerA -.Schedules.-> NotifA
+        TimerC -.Schedules.-> NotifC
+    end
+    
+    subgraph DatabaseLayer["🗄️ SwiftData Database"]
+        PetADB[(Pet A Record<br/>id: abc-123<br/>state: washing<br/>washDuration: 30min)]
+        PetBDB[(Pet B Record<br/>id: def-456<br/>state: idle<br/>washDuration: 30min)]
+        PetCDB[(Pet C Record<br/>id: ghi-789<br/>state: drying<br/>dryDuration: 45min)]
+        
+        TaskA[(Task A<br/>petID: abc-123<br/>stage: washing<br/>washStartTime: 14:00)]
+        TaskC[(Task C<br/>petID: ghi-789<br/>stage: drying<br/>dryStartTime: 14:15)]
+        
+        VMA <-.Reads/Writes.-> PetADB
+        VMB <-.Reads/Writes.-> PetBDB
+        VMC <-.Reads/Writes.-> PetCDB
+        
+        PetADB -.Has.-> TaskA
+        PetCDB -.Has.-> TaskC
+    end
+    
+    subgraph Isolation["🛡️ INDEPENDENCE GUARANTEES"]
+        I1["✅ Separate Timer Instances"]
+        I2["✅ Unique UserDefaults Keys"]
+        I3["✅ Unique Notification IDs"]
+        I4["✅ Separate Database Records"]
+        I5["✅ Independent Settings"]
+        I6["✅ No Shared State"]
+    end
+    
+    subgraph Example["📝 Example Scenario"]
+        E1["User navigates to Pet A → Start Wash"]
+        E2["Pet A timer starts: 30 minutes"]
+        E3["User navigates back → Dashboard"]
+        E4["User navigates to Pet C → Start Dry"]
+        E5["Pet C timer starts: 45 minutes"]
+        E6["Both timers run simultaneously ✅"]
+        E7["Pet B remains idle ✅"]
+        E8["No interference between pets ✅"]
+    end
+    
+    style PetA fill:#66CCFF,color:#000
+    style PetB fill:#33CC66,color:#fff
+    style PetC fill:#FFCC33,color:#000
+    style VMA fill:#3399FF,color:#fff
+    style VMB fill:#3399FF,color:#fff
+    style VMC fill:#3399FF,color:#fff
+    style TimerA fill:#FF9933,color:#fff
+    style TimerC fill:#FF9933,color:#fff
+    style NotifA fill:#9966FF,color:#fff
+    style NotifC fill:#9966FF,color:#fff
+    style I1 fill:#33CC66,color:#fff
+    style I2 fill:#33CC66,color:#fff
+    style I3 fill:#33CC66,color:#fff
+    style I4 fill:#33CC66,color:#fff
+    style I5 fill:#33CC66,color:#fff
+    style I6 fill:#33CC66,color:#fff

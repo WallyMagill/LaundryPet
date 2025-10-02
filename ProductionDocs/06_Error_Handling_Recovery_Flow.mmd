@@ -1,0 +1,232 @@
+graph TD
+    Start([App Operation]) --> Operation{Operation<br/>Type?}
+    
+    Operation -->|Database| DBOp[Database Operation]
+    Operation -->|Timer| TimerOp[Timer Operation]
+    Operation -->|Notification| NotifOp[Notification Operation]
+    Operation -->|Storage| StorageOp[Storage Operation]
+    
+    subgraph DatabaseErrors["🗄️ Database Error Handling"]
+        DBOp --> DBAction{Action<br/>Type?}
+        
+        DBAction -->|Save| TrySave[Try modelContext.save]
+        DBAction -->|Fetch| TryFetch[Try modelContext.fetch]
+        DBAction -->|Delete| TryDelete[Try modelContext.delete]
+        
+        TrySave --> SaveResult{Save<br/>Success?}
+        SaveResult -->|Success| SaveOK[✅ Data Saved<br/>Silent Success]
+        SaveResult -->|Failure| SaveError[❌ Save Failed<br/>Catch Error]
+        
+        SaveError --> CheckDisk{Disk<br/>Space?}
+        CheckDisk -->|Full| DiskFull[Show: Storage Full<br/>Suggest: Free Space]
+        CheckDisk -->|OK| SaveRetry{Retry<br/>Count?}
+        
+        SaveRetry -->|< 3| TrySave
+        SaveRetry -->|≥ 3| SaveFail[Show: Unable to Save<br/>Suggest: Restart App]
+        
+        DiskFull --> UserAction1
+        SaveFail --> UserAction1
+        
+        TryFetch --> FetchResult{Fetch<br/>Success?}
+        FetchResult -->|Success| FetchOK[✅ Data Loaded<br/>Return Results]
+        FetchResult -->|Failure| FetchError[❌ Fetch Failed<br/>Catch Error]
+        
+        FetchError --> FetchFallback[Return Empty Array<br/>Show Error Banner]
+        FetchFallback --> UserAction2
+        
+        TryDelete --> DeleteResult{Delete<br/>Success?}
+        DeleteResult -->|Success| DeleteOK[✅ Data Deleted<br/>Update UI]
+        DeleteResult -->|Failure| DeleteError[❌ Delete Failed<br/>Catch Error]
+        
+        DeleteError --> DeleteRetry{Retry<br/>Count?}
+        DeleteRetry -->|< 3| TryDelete
+        DeleteRetry -->|≥ 3| DeleteFail[Show: Unable to Delete<br/>Suggest: Restart App]
+        
+        DeleteFail --> UserAction3
+    end
+    
+    subgraph TimerErrors["⏱️ Timer Error Handling"]
+        TimerOp --> TimerAction{Action<br/>Type?}
+        
+        TimerAction -->|Start| TryStart[Try Start Timer]
+        TimerAction -->|Restore| TryRestore[Try Restore State]
+        TimerAction -->|Persist| TryPersist[Try Save State]
+        
+        TryStart --> StartResult{Timer<br/>Created?}
+        StartResult -->|Success| StartOK[✅ Timer Running<br/>Update UI]
+        StartResult -->|Failure| StartError[❌ Timer Failed<br/>Log Error]
+        
+        StartError --> StartRetry[Attempt Restart<br/>After 1 Second]
+        StartRetry --> StartRetryResult{Retry<br/>Success?}
+        StartRetryResult -->|Success| StartOK
+        StartRetryResult -->|Failure| StartFail[Show: Timer Error<br/>Suggest: Try Again]
+        
+        StartFail --> UserAction4
+        
+        TryRestore --> RestoreLoad[Load from UserDefaults]
+        RestoreLoad --> RestoreExists{Data<br/>Exists?}
+        
+        RestoreExists -->|No| NoRestore[No State to Restore<br/>Normal Idle State]
+        RestoreExists -->|Yes| RestoreDecode[Try Decode JSON]
+        
+        RestoreDecode --> DecodeResult{Decode<br/>Success?}
+        DecodeResult -->|Success| ValidateState[Validate State Data]
+        DecodeResult -->|Failure| CorruptData[❌ Corrupted Data<br/>Clear State]
+        
+        CorruptData --> ClearCorrupt[Delete UserDefaults Key<br/>Reset Timer]
+        ClearCorrupt --> NotifyCorrupt[Show: Timer Reset<br/>Reason: Data Error]
+        NotifyCorrupt --> UserAction5
+        
+        ValidateState --> StateValid{State<br/>Valid?}
+        StateValid -->|Valid| RestoreOK[✅ State Restored<br/>Calculate Remaining]
+        StateValid -->|Invalid| CorruptData
+        
+        TryPersist --> PersistEncode[Encode Timer State]
+        PersistEncode --> PersistSave[Save to UserDefaults]
+        PersistSave --> PersistResult{Save<br/>Success?}
+        
+        PersistResult -->|Success| PersistOK[✅ State Persisted<br/>Silent Success]
+        PersistResult -->|Failure| PersistError[❌ Persist Failed<br/>Log Warning]
+        
+        PersistError --> PersistWarning[Show Warning<br/>Timer Won't Survive App Close]
+        PersistWarning --> ContinueAnyway[Continue in Memory<br/>Best Effort]
+    end
+    
+    subgraph NotificationErrors["🔔 Notification Error Handling"]
+        NotifOp --> NotifAction{Action<br/>Type?}
+        
+        NotifAction -->|Request Permission| RequestPerm[Request Notification Permission]
+        NotifAction -->|Schedule| TrySchedule[Try Schedule Notification]
+        NotifAction -->|Cancel| TryCancel[Try Cancel Notification]
+        
+        RequestPerm --> PermResult{Permission<br/>Granted?}
+        PermResult -->|Granted| PermOK[✅ Permission Granted<br/>Can Schedule]
+        PermResult -->|Denied| PermDenied[❌ Permission Denied<br/>Show Impact]
+        
+        PermDenied --> ExplainImpact[Alert: Notifications Disabled<br/>Timer Still Works<br/>Manually Check App]
+        ExplainImpact --> OfferSettings[Button: Open Settings<br/>Button: Continue Anyway]
+        OfferSettings --> UserAction6
+        
+        TrySchedule --> CheckBudget{Notification<br/>Budget?}
+        CheckBudget -->|Available| ScheduleAdd[Add Notification Request]
+        CheckBudget -->|At Limit| BudgetFull[❌ Budget Exceeded<br/>64 Notification Limit]
+        
+        BudgetFull --> TryEvict[Try Evict Low Priority]
+        TryEvict --> EvictResult{Eviction<br/>Success?}
+        EvictResult -->|Success| ScheduleAdd
+        EvictResult -->|Failure| ScheduleFail[Cannot Schedule<br/>Show Warning]
+        
+        ScheduleFail --> WarnLimit[Alert: Too Many Active Timers<br/>Complete Some Cycles First]
+        WarnLimit --> UserAction7
+        
+        ScheduleAdd --> AddResult{Add<br/>Success?}
+        AddResult -->|Success| ScheduleOK[✅ Notification Scheduled<br/>Update Budget]
+        AddResult -->|Failure| ScheduleError[❌ Schedule Failed<br/>Unknown Error]
+        
+        ScheduleError --> ScheduleRetry{Retry<br/>Count?}
+        ScheduleRetry -->|< 3| TrySchedule
+        ScheduleRetry -->|≥ 3| ScheduleFinalFail[Continue Without Notification<br/>Log Error]
+        
+        TryCancel --> CancelResult{Cancel<br/>Success?}
+        CancelResult -->|Success| CancelOK[✅ Notification Cancelled]
+        CancelResult -->|Failure| CancelError[⚠️ Cancel Failed<br/>Log Warning]
+        
+        CancelError --> IgnoreCancel[Ignore Cancel Failure<br/>Notification May Deliver]
+    end
+    
+    subgraph StorageErrors["💾 Storage Error Handling"]
+        StorageOp --> CheckSpace[Check Available Space]
+        CheckSpace --> SpaceCheck{Space<br/>Available?}
+        
+        SpaceCheck -->|< 50MB| LowSpace[⚠️ Low Storage<br/>Show Warning]
+        SpaceCheck -->|≥ 50MB| SpaceOK[✅ Storage OK<br/>Continue]
+        
+        LowSpace --> WarnStorage[Alert: Storage Almost Full<br/>App May Not Function<br/>Suggest: Free Space]
+        WarnStorage --> UserAction8
+    end
+    
+    subgraph UserActions["👆 User Recovery Actions"]
+        UserAction1{User<br/>Choice?}
+        UserAction2{User<br/>Choice?}
+        UserAction3{User<br/>Choice?}
+        UserAction4{User<br/>Choice?}
+        UserAction5{User<br/>Choice?}
+        UserAction6{User<br/>Choice?}
+        UserAction7{User<br/>Choice?}
+        UserAction8{User<br/>Choice?}
+        
+        UserAction1 -->|Retry| Operation
+        UserAction1 -->|Cancel| End1[Operation Cancelled]
+        
+        UserAction2 -->|Retry| Operation
+        UserAction2 -->|Cancel| End2[Show Empty State]
+        
+        UserAction3 -->|Retry| Operation
+        UserAction3 -->|Cancel| End3[Item Not Deleted]
+        
+        UserAction4 -->|Retry| Operation
+        UserAction4 -->|Cancel| End4[Timer Not Started]
+        
+        UserAction5 -->|OK| End5[Continue with Reset]
+        
+        UserAction6 -->|Settings| OpenSettings[Open iOS Settings<br/>Enable Notifications]
+        UserAction6 -->|Continue| End6[Continue Without Notif]
+        
+        OpenSettings --> End7[User Enables Permission]
+        
+        UserAction7 -->|Complete Cycles| Dashboard[Return to Dashboard<br/>Complete Some Cycles]
+        UserAction7 -->|Continue| End8[Continue Without Notif]
+        
+        UserAction8 -->|Free Space| ExitApp[User Frees Storage]
+        UserAction8 -->|Continue| End9[Continue at Risk]
+    end
+    
+    subgraph Logging["📝 Logging Strategy"]
+        L1[Development: Verbose Logs]
+        L2[Print All Errors to Console]
+        L3[Include Stack Traces]
+        L4[Production: Minimal Logs]
+        L5[Rely on Crash Reports]
+        L6[No Custom Analytics]
+        
+        L1 --> L2
+        L2 --> L3
+        L4 --> L5
+        L5 --> L6
+    end
+    
+    SaveOK --> Success1[Continue App Flow]
+    FetchOK --> Success1
+    DeleteOK --> Success1
+    StartOK --> Success1
+    NoRestore --> Success1
+    RestoreOK --> Success1
+    PersistOK --> Success1
+    ContinueAnyway --> Success1
+    PermOK --> Success1
+    ScheduleOK --> Success1
+    ScheduleFinalFail --> Success1
+    CancelOK --> Success1
+    IgnoreCancel --> Success1
+    SpaceOK --> Success1
+    
+    Success1 --> End([✅ Operation Complete])
+    
+    style SaveError fill:#FF4D4D,color:#fff
+    style FetchError fill:#FF4D4D,color:#fff
+    style DeleteError fill:#FF4D4D,color:#fff
+    style StartError fill:#FF4D4D,color:#fff
+    style CorruptData fill:#FF4D4D,color:#fff
+    style PersistError fill:#FF9933,color:#fff
+    style PermDenied fill:#FF9933,color:#fff
+    style BudgetFull fill:#FF9933,color:#fff
+    style ScheduleError fill:#FF4D4D,color:#fff
+    style LowSpace fill:#FF9933,color:#fff
+    style SaveOK fill:#33CC66,color:#fff
+    style FetchOK fill:#33CC66,color:#fff
+    style DeleteOK fill:#33CC66,color:#fff
+    style StartOK fill:#33CC66,color:#fff
+    style RestoreOK fill:#33CC66,color:#fff
+    style PersistOK fill:#33CC66,color:#fff
+    style PermOK fill:#33CC66,color:#fff
+    style ScheduleOK fill:#33CC66,color:#fff

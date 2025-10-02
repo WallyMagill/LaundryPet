@@ -1,0 +1,163 @@
+stateDiagram-v2
+    [*] --> Idle: Pet Created
+    
+    Idle --> Washing: Start Wash Button
+    
+    state Washing {
+        [*] --> TimerRunning
+        TimerRunning --> CalculateRemaining: Every 0.5s
+        CalculateRemaining --> TimerRunning: remaining > 0
+        CalculateRemaining --> TimerComplete: remaining ≤ 0
+        
+        state TimerRunning {
+            [*] --> SaveState
+            SaveState --> UpdateUI
+            UpdateUI --> SaveState: Loop
+            
+            note right of SaveState
+                UserDefaults:
+                - endTime: Date
+                - type: .wash
+                - petID: UUID
+            end note
+        }
+        
+        state TimerComplete {
+            [*] --> CancelTimer
+            CancelTimer --> ClearState
+            ClearState --> SendNotification
+            SendNotification --> [*]
+        }
+    }
+    
+    Washing --> WashComplete: Timer Expires
+    
+    WashComplete --> Drying: Start Dry Button
+    
+    state Drying {
+        [*] --> TimerRunning2
+        TimerRunning2 --> CalculateRemaining2: Every 0.5s
+        CalculateRemaining2 --> TimerRunning2: remaining > 0
+        CalculateRemaining2 --> TimerComplete2: remaining ≤ 0
+        
+        state TimerRunning2 {
+            [*] --> SaveState2
+            SaveState2 --> UpdateUI2
+            UpdateUI2 --> SaveState2: Loop
+            
+            note right of SaveState2
+                UserDefaults:
+                - endTime: Date
+                - type: .dry
+                - petID: UUID
+            end note
+        }
+        
+        state TimerComplete2 {
+            [*] --> CancelTimer2
+            CancelTimer2 --> ClearState2
+            ClearState2 --> SendNotification2
+            SendNotification2 --> [*]
+        }
+    }
+    
+    Drying --> DryComplete: Timer Expires
+    
+    DryComplete --> Folding: Ready to Fold State
+    
+    Folding --> CycleComplete: User Taps Fold
+    
+    state CycleComplete {
+        [*] --> UpdatePetHealth
+        UpdatePetHealth --> UpdateStats
+        UpdateStats --> ClearNotifications
+        ClearNotifications --> SaveDatabase
+        SaveDatabase --> [*]
+        
+        note right of UpdatePetHealth
+            Pet Updates:
+            - health = 100
+            - state = .happy
+            - lastLaundryDate = now
+            - cyclesCompleted += 1
+            - streak updated
+        end note
+    }
+    
+    CycleComplete --> Idle: Return to Idle
+    
+    Washing --> RecoveryCheck: App Reopened
+    Drying --> RecoveryCheck: App Reopened
+    
+    state RecoveryCheck {
+        [*] --> LoadUserDefaults
+        LoadUserDefaults --> ValidateState
+        ValidateState --> CalculateActualRemaining
+        CalculateActualRemaining --> [*]
+        
+        note right of ValidateState
+            Validation:
+            - endTime exists?
+            - endTime reasonable?
+            - Not too far in future?
+            - Not too far in past?
+        end note
+    }
+    
+    RecoveryCheck --> Washing: Timer Still Running
+    RecoveryCheck --> WashComplete: Timer Expired
+    RecoveryCheck --> Drying: Timer Still Running
+    RecoveryCheck --> DryComplete: Timer Expired
+    RecoveryCheck --> Idle: Corrupted/Invalid
+    
+    Idle --> HealthDecay: Time Passes
+    WashComplete --> HealthDecay: Time Passes
+    DryComplete --> HealthDecay: Time Passes
+    
+    state HealthDecay {
+        [*] --> CheckLastLaundry
+        CheckLastLaundry --> CalculateHealth
+        CalculateHealth --> UpdateState
+        
+        note right of CalculateHealth
+            Health Decay:
+            daysSince = now - lastLaundryDate
+            expected = cycleFrequencyDays
+            health = 100 * (1 - daysSince/expected)
+            
+            State Transitions:
+            100-75% → Happy
+            75-50% → Neutral
+            50-25% → Sad
+            25-1% → Very Sad
+            0% → Dead
+        end note
+        
+        UpdateState --> [*]
+    }
+    
+    HealthDecay --> Idle: Health Updated
+    HealthDecay --> Dead: Health = 0
+    
+    Dead --> [*]: Pet Dies
+    
+    note left of Idle
+        Idle State:
+        - No active timers
+        - Can start wash
+        - Health decaying over time
+    end note
+    
+    note right of WashComplete
+        Wash Complete:
+        - Notification sent
+        - Can start dry
+        - Pet waiting
+    end note
+    
+    note right of DryComplete
+        Dry Complete:
+        - Notification sent
+        - Ready to fold
+        - Tap to complete
+    end note

@@ -1,0 +1,158 @@
+graph TD
+    Start([Pet Created]) --> Init[Initialize Pet<br/>Health: 100%<br/>State: Happy<br/>LastLaundry: Now]
+    
+    Init --> Happy[😊 Happy State<br/>Health: 100-75%<br/>Color: Green]
+    
+    Happy --> TimePasses1[⏳ Time Passes<br/>30 Second Update Cycle]
+    
+    TimePasses1 --> Calculate1[Calculate Health<br/>daysSince = now - lastLaundry<br/>expected = cycleFrequencyDays<br/>health = 100 × 1 - daysSince/expected]
+    
+    Calculate1 --> Check1{Health<br/>Value?}
+    
+    Check1 -->|100-75%| StayHappy[Stay Happy<br/>No State Change]
+    Check1 -->|74-50%| ToNeutral[Transition to Neutral]
+    Check1 -->|49-25%| ToSad[Transition to Sad]
+    Check1 -->|24-1%| ToVerySad[Transition to Very Sad]
+    Check1 -->|0%| ToDead[Transition to Dead]
+    
+    StayHappy --> Happy
+    
+    ToNeutral --> Neutral[😐 Neutral State<br/>Health: 75-50%<br/>Color: Blue]
+    
+    Neutral --> TimePasses2[⏳ Time Passes<br/>30 Second Update Cycle]
+    
+    TimePasses2 --> Calculate2[Calculate Health<br/>Same Formula]
+    
+    Calculate2 --> Check2{Health<br/>Value?}
+    
+    Check2 -->|100-75%| BackToHappy[Laundry Done!<br/>Back to Happy]
+    Check2 -->|74-50%| StayNeutral[Stay Neutral<br/>No State Change]
+    Check2 -->|49-25%| ToSad
+    Check2 -->|24-1%| ToVerySad
+    Check2 -->|0%| ToDead
+    
+    BackToHappy --> Happy
+    StayNeutral --> Neutral
+    
+    ToSad --> Sad[😟 Sad State<br/>Health: 50-25%<br/>Color: Orange]
+    
+    Sad --> Warning1[Show Warning<br/>Pet Needs Laundry Soon]
+    
+    Warning1 --> TimePasses3[⏳ Time Passes<br/>30 Second Update Cycle]
+    
+    TimePasses3 --> Calculate3[Calculate Health<br/>Same Formula]
+    
+    Calculate3 --> Check3{Health<br/>Value?}
+    
+    Check3 -->|100-75%| BackToHappy
+    Check3 -->|74-50%| BackToNeutral[Back to Neutral]
+    Check3 -->|49-25%| StaySad[Stay Sad<br/>No State Change]
+    Check3 -->|24-1%| ToVerySad
+    Check3 -->|0%| ToDead
+    
+    BackToNeutral --> Neutral
+    StaySad --> Sad
+    
+    ToVerySad --> VerySad[😢 Very Sad State<br/>Health: 25-1%<br/>Color: Red]
+    
+    VerySad --> Warning2[⚠️ Urgent Warning<br/>Pet Critically Unhappy]
+    
+    Warning2 --> TimePasses4[⏳ Time Passes<br/>30 Second Update Cycle]
+    
+    TimePasses4 --> Calculate4[Calculate Health<br/>Same Formula]
+    
+    Calculate4 --> Check4{Health<br/>Value?}
+    
+    Check4 -->|100-75%| BackToHappy
+    Check4 -->|74-50%| BackToNeutral
+    Check4 -->|49-25%| BackToSad[Back to Sad]
+    Check4 -->|24-1%| StayVerySad[Stay Very Sad<br/>Health Declining]
+    Check4 -->|0%| ToDead
+    
+    BackToSad --> Sad
+    StayVerySad --> VerySad
+    
+    ToDead --> Dead[💀 Dead State<br/>Health: 0%<br/>Color: Gray]
+    
+    Dead --> Permanent[Permanent State<br/>Cannot Be Revived]
+    
+    Permanent --> UserChoice{User<br/>Action?}
+    
+    UserChoice -->|Delete Pet| DeletePet[Remove Pet<br/>Clear All Data]
+    UserChoice -->|Keep Pet| Memorial[Pet Remains<br/>As Memorial]
+    
+    DeletePet --> End1([Pet Removed])
+    Memorial --> End2([Pet Inactive])
+    
+    subgraph LaundryCompleted["✅ Cycle Completion"]
+        CompleteWash[User Completes<br/>Full Cycle]
+        CompleteWash --> ResetHealth[Set Health = 100%]
+        ResetHealth --> ResetDate[Set lastLaundry = Now]
+        ResetDate --> ResetState[Set State = Happy]
+        ResetState --> UpdateStreak[Update Streak<br/>If Within Window]
+        UpdateStreak --> IncrementCycles[Increment<br/>totalCyclesCompleted]
+        IncrementCycles --> BackToHappy
+    end
+    
+    Happy -.Complete Cycle.-> CompleteWash
+    Neutral -.Complete Cycle.-> CompleteWash
+    Sad -.Complete Cycle.-> CompleteWash
+    VerySad -.Complete Cycle.-> CompleteWash
+    
+    subgraph HealthFormula["📊 Health Calculation Formula"]
+        F1["daysSinceLastLaundry = now - lastLaundryDate"]
+        F2["expectedCycleDays = cycleFrequencyDays default: 7"]
+        F3["healthPercentage = 100 × 1 - daysSince / expected"]
+        F4["healthPercentage = max0, min100, healthPercentage"]
+        
+        F1 --> F2
+        F2 --> F3
+        F3 --> F4
+        
+        F4 --> Examples[Examples:<br/>0 days = 100%<br/>3.5 days = 50%<br/>7 days = 0%]
+    end
+    
+    subgraph StateThresholds["🎨 State Thresholds"]
+        T1["Happy: 100% ≥ health > 75%"]
+        T2["Neutral: 75% ≥ health > 50%"]
+        T3["Sad: 50% ≥ health > 25%"]
+        T4["Very Sad: 25% ≥ health > 0%"]
+        T5["Dead: health = 0%"]
+    end
+    
+    subgraph UpdateTiming["⏱️ Update Timing"]
+        U1["Global Timer: Every 30 seconds"]
+        U2["All pets updated simultaneously"]
+        U3["SimpleTimerService broadcasts"]
+        U4["Each PetViewModel listens"]
+        U5["Efficient batch updates"]
+        
+        U1 --> U2
+        U2 --> U3
+        U3 --> U4
+        U4 --> U5
+    end
+    
+    subgraph UserSettings["⚙️ User Configurable"]
+        S1["cycleFrequencyDays"]
+        S2["Default: 7 days"]
+        S3["User can adjust per pet"]
+        S4["Range: 1-30 days"]
+        
+        S1 --> S2
+        S2 --> S3
+        S3 --> S4
+        
+        S4 --> Impact[Faster decay = More frequent<br/>laundry needed]
+    end
+    
+    style Happy fill:#33CC66,color:#fff
+    style Neutral fill:#3399FF,color:#fff
+    style Sad fill:#FF9933,color:#fff
+    style VerySad fill:#FF4D4D,color:#fff
+    style Dead fill:#666666,color:#fff
+    style CompleteWash fill:#9966FF,color:#fff
+    style ResetHealth fill:#33CC66,color:#fff
+    style Warning1 fill:#FF9933,color:#fff
+    style Warning2 fill:#FF4D4D,color:#fff
+    style BackToHappy fill:#33CC66,color:#fff

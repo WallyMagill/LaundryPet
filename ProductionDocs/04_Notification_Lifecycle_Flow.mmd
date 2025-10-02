@@ -1,0 +1,146 @@
+graph TD
+    Start([Timer Started]) --> CheckPerm{Notification<br/>Permission?}
+    
+    CheckPerm -->|Denied| NoNotif[Continue Without Notifications<br/>Timer Still Works]
+    CheckPerm -->|Not Determined| RequestPerm[Request Permission<br/>Show Context Dialog]
+    CheckPerm -->|Authorized| Schedule
+    
+    RequestPerm --> UserDecides{User<br/>Choice?}
+    UserDecides -->|Allow| Schedule
+    UserDecides -->|Don't Allow| NoNotif
+    
+    NoNotif --> TimerOnly[Timer Runs Normally<br/>No Notifications Sent]
+    TimerOnly --> End1([User Must Check App])
+    
+    Schedule --> CheckBudget{Notification<br/>Budget OK?}
+    
+    subgraph BudgetCheck["💰 Budget Management"]
+        CheckBudget -->|< 64 Notifications| HasSpace[Space Available]
+        CheckBudget -->|= 64 Notifications| AtLimit[At Limit]
+        
+        AtLimit --> Prioritize{New Notification<br/>Priority?}
+        Prioritize -->|High/Critical| Evict[Find Low Priority<br/>Notification to Remove]
+        Prioritize -->|Low| Fail[Cannot Schedule<br/>Show Warning]
+        
+        Evict --> RemoveLow[Remove Lowest<br/>Priority Notification]
+        RemoveLow --> HasSpace
+        
+        Fail --> NoNotif
+    end
+    
+    HasSpace --> CreateContent[Create Notification Content]
+    
+    subgraph ContentCreation["📝 Content Creation"]
+        CreateContent --> SetTitle[Set Title<br/>Pet Name + Event]
+        SetTitle --> SetBody[Set Body<br/>Descriptive Message]
+        SetBody --> SetSound[Set Sound<br/>.default]
+        SetSound --> SetBadge[Set Badge<br/>+1]
+        SetBadge --> SetID[Set Unique ID<br/>timer_petID_type]
+    end
+    
+    SetID --> CreateTrigger[Create Calendar Trigger<br/>Exact Date/Time]
+    
+    CreateTrigger --> AddRequest[Add Notification Request<br/>to iOS]
+    
+    AddRequest --> ScheduleSuccess{Schedule<br/>Success?}
+    
+    ScheduleSuccess -->|Success| Track[Track in Budget Manager<br/>Increment Count]
+    ScheduleSuccess -->|Failed| HandleError[Handle Error<br/>Log and Retry]
+    
+    HandleError --> RetryCount{Retry<br/>Count?}
+    RetryCount -->|< 3 Attempts| AddRequest
+    RetryCount -->|≥ 3 Attempts| NoNotif
+    
+    Track --> Pending[Notification Pending<br/>in iOS Queue]
+    
+    Pending --> Wait[⏳ Wait Until Trigger Time]
+    
+    Wait --> TriggerTime{Trigger<br/>Time Reached?}
+    
+    TriggerTime -->|Not Yet| Wait
+    TriggerTime -->|Yes| AppState{App<br/>State?}
+    
+    subgraph Delivery["📱 Notification Delivery"]
+        AppState -->|Foreground| ShowBanner[Show In-App Banner<br/>UNUserNotificationCenterDelegate]
+        AppState -->|Background| ShowNotif[Show System Notification<br/>Lock Screen/Banner]
+        AppState -->|Not Running| ShowNotif
+        
+        ShowBanner --> Haptic[Play Haptic Feedback]
+        ShowNotif --> Badge[Update App Badge<br/>+1]
+        
+        Haptic --> UserAction1
+        Badge --> UserAction2
+    end
+    
+    subgraph UserResponse["👆 User Response"]
+        UserAction1{User<br/>Action?}
+        UserAction2{User<br/>Action?}
+        
+        UserAction1 -->|Tap Banner| OpenApp1[Open App<br/>Navigate to Pet]
+        UserAction1 -->|Dismiss| Dismissed1[Notification Dismissed]
+        UserAction1 -->|Ignore| Stays1[Stays in Notification Center]
+        
+        UserAction2 -->|Tap Notification| OpenApp2[Open App<br/>Navigate to Pet]
+        UserAction2 -->|Clear| Dismissed2[Notification Cleared]
+        UserAction2 -->|Ignore| Stays2[Stays in Notification Center]
+    end
+    
+    OpenApp1 --> RestoreContext[Restore App Context<br/>Show Pet Detail]
+    OpenApp2 --> RestoreContext
+    
+    RestoreContext --> ClearNotif[Clear Delivered Notification]
+    ClearNotif --> ClearBadge[Clear Badge Count]
+    ClearBadge --> UpdateBudget[Update Budget<br/>Free Slot]
+    UpdateBudget --> NextAction[User Continues Cycle<br/>Start Next Stage]
+    
+    Dismissed1 --> Cleanup1[Cleanup Delivered<br/>Notification]
+    Dismissed2 --> Cleanup1
+    Stays1 --> Cleanup2[Auto-Cleanup After<br/>3 Days iOS Default]
+    Stays2 --> Cleanup2
+    
+    Cleanup1 --> UpdateBudget
+    Cleanup2 --> UpdateBudget
+    
+    subgraph Cancellation["❌ Cancellation Scenarios"]
+        CancelEvents[Cancellation Events]
+        CancelEvents --> C1[User Cancels Timer]
+        CancelEvents --> C2[User Deletes Pet]
+        CancelEvents --> C3[User Completes Cycle Early]
+        CancelEvents --> C4[App Cleanup Routine]
+        
+        C1 --> Remove[Remove Pending Notification<br/>By Identifier]
+        C2 --> RemoveAll[Remove All Pet Notifications<br/>By Pet ID]
+        C3 --> Remove
+        C4 --> RemoveExpired[Remove Expired Notifications<br/>Older than Trigger Time]
+        
+        Remove --> UpdateBudget
+        RemoveAll --> UpdateBudget
+        RemoveExpired --> UpdateBudget
+    end
+    
+    subgraph ErrorScenarios["⚠️ Error Scenarios"]
+        E1[Permission Revoked Mid-Flight]
+        E2[iOS Delivery Failure]
+        E3[Do Not Disturb Enabled]
+        E4[Silent/Focus Mode]
+        
+        E1 --> Silent[Notification Silently Fails<br/>App Still Works]
+        E2 --> Silent
+        E3 --> Delayed[Notification Delayed<br/>Delivered When DND Off]
+        E4 --> Delayed
+        
+        Silent --> UpdateBudget
+        Delayed --> UserAction2
+    end
+    
+    style Start fill:#3399FF,color:#fff
+    style Schedule fill:#33CC66,color:#fff
+    style HasSpace fill:#33CC66,color:#fff
+    style AtLimit fill:#FF9933,color:#fff
+    style Fail fill:#FF4D4D,color:#fff
+    style NoNotif fill:#FF9933,color:#fff
+    style ShowNotif fill:#9966FF,color:#fff
+    style ShowBanner fill:#66CCFF,color:#000
+    style OpenApp1 fill:#3399FF,color:#fff
+    style OpenApp2 fill:#3399FF,color:#fff
+    style UpdateBudget fill:#33CC66,color:#fff

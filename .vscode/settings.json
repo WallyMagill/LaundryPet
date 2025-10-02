@@ -1,0 +1,104 @@
+{
+  "// SWIFT LANGUAGE SERVER": "",
+  "swift.path": "/usr/bin/swift",
+  "swift.buildPath": "/usr/bin/swift",
+  "swift.sourcekit-lsp.serverPath": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/sourcekit-lsp",
+  "swift.sourcekit-lsp.serverArguments": [
+    "-Xswiftc",
+    "-sdk",
+    "-Xswiftc",
+    "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
+  ],
+  "swift.autoGenerateMain": false,
+
+  "// FILE ASSOCIATIONS": "",
+  "files.associations": {
+    "*.swift": "swift",
+    "*.md": "markdown",
+    "*.plist": "xml"
+  },
+
+  "// EDITOR SETTINGS": "",
+  "editor.tabSize": 4,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "editor.rulers": [100],
+  "editor.formatOnSave": false,
+  "editor.wordWrap": "wordWrapColumn",
+  "editor.wordWrapColumn": 100,
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": "active",
+
+  "// SWIFT SPECIFIC": "",
+  "[swift]": {
+    "editor.defaultFormatter": "sswg.swift-lang",
+    "editor.formatOnSave": true,
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true
+  },
+
+  "// MARKDOWN SPECIFIC": "",
+  "[markdown]": {
+    "editor.wordWrap": "on",
+    "editor.quickSuggestions": {
+      "other": "on",
+      "comments": "off",
+      "strings": "off"
+    },
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "yzhang.markdown-all-in-one"
+  },
+
+  "// FILE EXPLORER EXCLUSIONS": "",
+  "files.exclude": {
+    "**/.DS_Store": true,
+    "**/.git": true,
+    "**/.build": true,
+    "**/DerivedData": true,
+    "**/*.xcodeproj/project.xcworkspace": true,
+    "**/*.xcodeproj/xcuserdata": true,
+    "**/*.xcworkspace/xcuserdata": true
+  },
+
+  "// SEARCH EXCLUSIONS": "",
+  "search.exclude": {
+    "**/.build": true,
+    "**/DerivedData": true,
+    "**/*.xcodeproj": true,
+    "**/*.xcworkspace": true,
+    "**/Pods": true,
+    "**/.git": true
+  },
+
+  "// TERMINAL": "",
+  "terminal.integrated.defaultProfile.osx": "zsh",
+  "terminal.integrated.fontSize": 13,
+
+  "// GIT": "",
+  "git.ignoreLimitWarning": true,
+  "git.enableSmartCommit": true,
+  "git.confirmSync": false,
+
+  "// BREADCRUMBS": "",
+  "breadcrumbs.enabled": true,
+  "breadcrumbs.symbolPath": "on",
+
+  "// MINIMAP": "",
+  "editor.minimap.enabled": true,
+  "editor.minimap.maxColumn": 100,
+
+  "// EXTENSIONS": "",
+  "extensions.ignoreRecommendations": false,
+
+  "// CURSOR AI SPECIFIC": "",
+  "cursor.ai.enableCodeActions": true,
+  "cursor.ai.enableInlineCompletion": true,
+  "cursor.chat.defaultModel": "claude-3.5-sonnet",
+
+  "// PROJECT SPECIFIC": "",
+  "files.watcherExclude": {
+    "**/DerivedData/**": true,
+    "**/.build/**": true
+  }
+}
+

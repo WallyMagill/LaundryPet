@@ -1,0 +1,68 @@
+# LaundryTime Project Context
+
+## Project Overview
+LaundryTime is a production-ready iOS app that transforms laundry management into an engaging Tamagotchi-inspired pet care experience. Users create virtual pets whose happiness depends on completing laundry cycles (wash → dry → fold).
+
+## Key Technical Details
+- **Platform**: iOS 15.0+
+- **Language**: Swift 5+
+- **UI Framework**: SwiftUI
+- **Data Persistence**: SwiftData
+- **Architecture**: MVVM + Services
+- **Reactive Framework**: Combine
+
+## Core Features
+1. **Multi-Pet System**: Users can manage multiple independent pets, each with their own timers and settings
+2. **Complete Cycle Tracking**: Wash (30min) → Dry (60min) → Fold (instant)
+3. **Health Decay**: Pets' health decreases over time (default 7 days to 0%)
+4. **Background Persistence**: Timers persist when app closes via UserDefaults
+5. **Local Notifications**: iOS notifications alert users when cycles complete
+6. **Statistics**: Track cycles completed, streaks, and pet happiness
+
+## Critical Architectural Decisions
+1. **Multi-Pet Independence**: Each pet has own ViewModel and TimerService instance
+2. **Absolute Time**: All timers use Date (endTime), not countdown
+3. **UserDefaults for Timers**: Timer state persists in UserDefaults, survives restarts
+4. **SwiftData for Persistence**: Main app data stored in SwiftData
+5. **No Backend**: 100% local, no servers, no network calls
+6. **Privacy First**: No analytics, no tracking, no external SDKs
+
+## Documentation Structure
+All specifications in @ProductionDocs/:
+- 16 comprehensive markdown documents
+- 8 visual flow diagrams (Mermaid)
+- Complete developer quick reference
+- 100% coverage of all features and edge cases
+
+## Development Guidelines
+- Reference @ProductionDocs/ for all implementation details
+- Follow patterns in Developer_Quick_Reference.md
+- Check .cursor/rules before writing code
+- Prioritize: 1) Correctness, 2) User experience, 3) Code clarity
+- Test multi-pet scenarios thoroughly
+- Handle all errors gracefully
+
+## File Structure
+```
+LaundryTime/
+├── Models/              # SwiftData @Model classes
+├── ViewModels/          # @ObservableObject ViewModels
+├── Views/              # SwiftUI Views
+├── Services/           # Business logic services
+├── Components/         # Reusable UI components
+├── Utilities/          # Helper functions
+└── ProductionDocs/    # Complete technical documentation
+```
+
+## Common Patterns
+- ViewModel: `@MainActor final class PetViewModel: ObservableObject`
+- Service: `final class PetService { init(modelContext: ModelContext) }`
+- View: `struct PetView: View { @StateObject var viewModel: PetViewModel }`
+- Model: `@Model final class Pet { var id: UUID; var name: String }`
+
+## Quick Links
+- Architecture: @ProductionDocs/01_System_Architecture_Overview.md
+- Data Models: @ProductionDocs/02_Database_Design_Data_Models.md
+- Design System: @ProductionDocs/03_User_Interface_Design_System.md
+- Quick Reference: @ProductionDocs/Developer_Quick_Reference.md
+

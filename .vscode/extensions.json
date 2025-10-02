@@ -1,0 +1,17 @@
+{
+  "recommendations": [
+    "sswg.swift-lang",
+    "vknabel.vscode-swift-development-environment",
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint",
+    "bierner.markdown-mermaid",
+    "ms-vscode.vscode-json",
+    "eamodio.gitlens",
+    "github.vscode-pull-request-github"
+  ],
+  "unwantedRecommendations": [
+    "ms-vscode.cpptools",
+    "ms-vscode.cmake-tools"
+  ]
+}
+

@@ -1,0 +1,50 @@
+# SwiftLint Configuration for LaundryTime
+
+disabled_rules:
+  - trailing_whitespace
+  - line_length # We use 100 character ruler but allow flexibility
+
+opt_in_rules:
+  - force_unwrapping
+  - explicit_type_interface
+  - empty_count
+  - closure_spacing
+  - contains_over_first_not_nil
+
+excluded:
+  - .build
+  - DerivedData
+  - Pods
+  - .vscode
+  - .cursor
+
+force_unwrapping:
+  severity: error
+
+identifier_name:
+  min_length: 1 # Allow single-letter names for loops (i, j)
+  max_length: 50
+  excluded:
+    - id
+    - vm
+    - i
+    - j
+    - x
+    - y
+
+type_name:
+  min_length: 3
+  max_length: 50
+
+function_body_length:
+  warning: 50
+  error: 100
+
+file_length:
+  warning: 500
+  error: 1000
+
+cyclomatic_complexity:
+  warning: 10
+  error: 20
+

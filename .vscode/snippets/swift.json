@@ -1,0 +1,102 @@
+{
+  "SwiftUI View": {
+    "prefix": "swiftui-view",
+    "body": [
+      "import SwiftUI",
+      "",
+      "struct ${1:ViewName}: View {",
+      "    var body: some View {",
+      "        ${2:Text(\"Hello, World!\")}",
+      "    }",
+      "}",
+      "",
+      "#Preview {",
+      "    ${1:ViewName}()",
+      "}"
+    ],
+    "description": "Create a SwiftUI View with preview"
+  },
+  "ViewModel": {
+    "prefix": "viewmodel",
+    "body": [
+      "@MainActor",
+      "final class ${1:ViewModelName}: ObservableObject {",
+      "    // MARK: - Published Properties",
+      "    @Published var ${2:property}: ${3:Type}",
+      "    @Published var errorMessage: String?",
+      "    @Published var showError: Bool = false",
+      "    ",
+      "    // MARK: - Dependencies",
+      "    let modelContext: ModelContext",
+      "    ",
+      "    // MARK: - Initialization",
+      "    init(modelContext: ModelContext) {",
+      "        self.modelContext = modelContext",
+      "    }",
+      "    ",
+      "    // MARK: - Methods",
+      "    ${4:// Add methods here}",
+      "}"
+    ],
+    "description": "Create an ObservableObject ViewModel"
+  },
+  "Service": {
+    "prefix": "service",
+    "body": [
+      "final class ${1:ServiceName} {",
+      "    // MARK: - Dependencies",
+      "    let modelContext: ModelContext",
+      "    ",
+      "    // MARK: - Initialization",
+      "    init(modelContext: ModelContext) {",
+      "        self.modelContext = modelContext",
+      "    }",
+      "    ",
+      "    // MARK: - Methods",
+      "    ${2:// Add methods here}",
+      "}"
+    ],
+    "description": "Create a Service class"
+  },
+  "SwiftData Model": {
+    "prefix": "swiftdata-model",
+    "body": [
+      "@Model",
+      "final class ${1:ModelName} {",
+      "    var id: UUID",
+      "    var ${2:property}: ${3:Type}",
+      "    ",
+      "    init(${2:property}: ${3:Type}) {",
+      "        self.id = UUID()",
+      "        self.${2:property} = ${2:property}",
+      "    }",
+      "}"
+    ],
+    "description": "Create a SwiftData Model"
+  },
+  "Error Handling": {
+    "prefix": "error-handling",
+    "body": [
+      "do {",
+      "    try ${1:operation}",
+      "} catch {",
+      "    print(\"❌ ${2:Operation} failed: \\(error)\")",
+      "    self.errorMessage = \"${3:User-friendly error message}\"",
+      "    self.showError = true",
+      "}"
+    ],
+    "description": "Add proper error handling"
+  },
+  "Fetch Descriptor": {
+    "prefix": "fetch-descriptor",
+    "body": [
+      "let descriptor = FetchDescriptor<${1:ModelName}>(",
+      "    predicate: #Predicate { ${2:\\$0.property == value} },",
+      "    sortBy: [SortDescriptor(\\.${3:property})]",
+      ")",
+      "let ${4:results} = try? modelContext.fetch(descriptor)"
+    ],
+    "description": "Create a SwiftData FetchDescriptor"
+  }
+}
+

@@ -1,0 +1,274 @@
+# LaundryTime Cursor AI Rules
+
+## 🎯 Project Context
+You are working on LaundryTime, a production-ready iOS app that transforms laundry management into a Tamagotchi-inspired pet care experience. The complete technical specifications are in @ProductionDocs/.
+
+## 📚 Always Reference Documentation
+Before generating any code:
+1. Check @ProductionDocs/01_System_Architecture_Overview.md for architectural patterns
+2. Check @ProductionDocs/02_Database_Design_Data_Models.md for data models
+3. Check @ProductionDocs/Developer_Quick_Reference.md for common patterns
+4. Check relevant specialized docs (Timer, Notification, Multi-Pet, Error Handling)
+
+## 🏗️ Architectural Principles
+
+### MVVM + Services Pattern (MANDATORY)
+- **Views**: SwiftUI views only handle UI rendering
+- **ViewModels**: Business logic, @ObservableObject, @Published properties
+- **Services**: Shared business logic (PetService, NotificationService, etc.)
+- **Models**: SwiftData models with @Model macro
+- **Never mix layers**: Views don't access Services directly, always through ViewModels
+
+### Multi-Pet Independence (CRITICAL)
+- Each pet MUST have its own PetViewModel instance when viewed
+- Each PetViewModel MUST create its own PetTimerService instance
+- UserDefaults keys MUST be unique per pet: `pet_timer_{petID.uuidString}`
+- Notification IDs MUST be unique per pet: `timer_{petID.uuidString}_{type}`
+- NO shared mutable state between pets
+- Reference: @ProductionDocs/07_Multi_Pet_Architecture.md
+
+### Timer System (CRITICAL)
+- ALWAYS use absolute time (Date), NEVER countdown timers
+- Calculate remaining time: `endTime.timeIntervalSinceNow`
+- Persist timer state to UserDefaults immediately on changes
+- Timer state structure: `{ endTime: Date, type: SimpleTimerType, petID: UUID }`
+- Reference: @ProductionDocs/05_Timer_Background_System.md
+
+## ✅ Code Quality Standards
+
+### Swift Best Practices
+- Use `guard let` for safe unwrapping, never force unwrap (`!`) except with clear justification
+- Prefer `if let` for optional binding
+- Use `do-catch` for all throwing operations, never `try?` without logging
+- Use descriptive variable names, but concise for common items (e.g., `pet`, `task`, `timer`)
+- Add `// MARK: -` sections for organization
+- Use `@MainActor` for ViewModels that update UI
+
+### Error Handling (MANDATORY)
+- ALL database operations MUST have do-catch blocks
+- ALL errors MUST be logged with print() in development
+- ALL user-facing errors MUST show friendly messages (reference @ProductionDocs/13_Error_Handling_Recovery.md)
+- Never silent failures - always inform user or log error
+- Example pattern:
+```swift
+do {
+    try modelContext.save()
+} catch {
+    print("❌ Save failed: \(error)")
+    self.errorMessage = "Unable to save changes"
+    self.showError = true
+}
+```
+
+### SwiftData Patterns
+- Always fetch with FetchDescriptor and predicates
+- Use #Predicate for filtering: `#Predicate { $0.isActive == true }`
+- Delete cascade: Delete related entities manually (SwiftData doesn't auto-cascade)
+- ModelContext passed via dependency injection, never global singleton
+- Reference: @ProductionDocs/02_Database_Design_Data_Models.md
+
+### Notification Handling
+- Check permission status before scheduling
+- Handle denied permission gracefully (app still works, just no notifications)
+- Track notification budget (iOS 64 limit)
+- Use unique identifiers per pet and timer type
+- Reference: @ProductionDocs/06_Notification_System.md and @ProductionDocs/16_Notification_Management_Limits.md
+
+## 🎨 UI/UX Guidelines
+
+### Design System (MANDATORY)
+- Use semantic colors from design system (Color.primaryBlue, Color.happyGreen, etc.)
+- Use typography scale (Font.displayLarge, Font.headline, Font.body, etc.)
+- Use spacing constants (.spacing1 through .spacing8 based on 8pt grid)
+- All touch targets minimum 44×44pt
+- Support Dark Mode (use semantic colors automatically)
+- Support Dynamic Type
+- Add VoiceOver labels for accessibility
+- Reference: @ProductionDocs/03_User_Interface_Design_System.md
+
+### Component Patterns
+```swift
+// Standard button
+Button(action: action) {
+    Text("Button Text")
+        .font(.buttonText)
+        .foregroundColor(.white)
+        .frame(maxWidth: .infinity)
+        .frame(height: 56)
+        .background(Color.primaryBlue)
+        .cornerRadius(16)
+}
+
+// Standard card
+VStack {
+    // Content
+}
+.padding(.spacing4)
+.background(
+    RoundedRectangle(cornerRadius: 16)
+        .fill(Color.surface)
+        .shadow(color: .black.opacity(0.05), radius: 8)
+)
+```
+
+## 🚫 Anti-Patterns (NEVER DO THIS)
+
+### ❌ NEVER: Force Unwrap Without Justification
+```swift
+let pet = pets.first!  // BAD - will crash if empty
+```
+
+### ❌ NEVER: Silent Error Handling
+```swift
+try? modelContext.save()  // BAD - hides errors
+```
+
+### ❌ NEVER: Shared Timer Service
+```swift
+static let timerService = PetTimerService()  // BAD - breaks multi-pet isolation
+```
+
+### ❌ NEVER: Countdown Timers for Background
+```swift
+var timeRemaining = 1800
+Timer.scheduledTimer { timeRemaining -= 1 }  // BAD - won't survive background
+```
+
+### ❌ NEVER: localStorage/sessionStorage in Artifacts
+```swift
+// These APIs don't exist in Claude artifacts, use React state instead
+localStorage.setItem()  // BAD
+sessionStorage.setItem()  // BAD
+```
+
+### ❌ NEVER: Hardcoded Values from Design System
+```swift
+.foregroundColor(Color(red: 0.2, green: 0.6, blue: 1.0))  // BAD - use Color.primaryBlue
+.font(.system(size: 17))  // BAD - use Font.body
+```
+
+## ✅ Preferred Patterns (ALWAYS DO THIS)
+
+### ✅ Safe Unwrapping
+```swift
+guard let pet = pets.first else {
+    print("⚠️ No pets found")
+    return
+}
+```
+
+### ✅ Proper Error Handling
+```swift
+do {
+    try modelContext.save()
+} catch {
+    print("❌ Error: \(error)")
+    handleError(error)
+}
+```
+
+### ✅ Per-Pet Timer Service
+```swift
+let timerService = PetTimerService(petID: pet.id)  // GOOD - isolated instance
+```
+
+### ✅ Absolute Time for Timers
+```swift
+let endTime = Date().addingTimeInterval(duration)  // GOOD - survives everything
+let remaining = endTime.timeIntervalSinceNow
+```
+
+### ✅ Semantic Design System Colors
+```swift
+.foregroundColor(.primaryBlue)  // GOOD - semantic
+.font(.body)  // GOOD - from design system
+.padding(.spacing4)  // GOOD - uses spacing scale
+```
+
+## 📝 Code Generation Guidelines
+
+### When Creating ViewModels
+1. Start with `@MainActor` and `@ObservableObject`
+2. Add `@Published` properties for UI state
+3. Inject `ModelContext` in initializer
+4. Add clear `// MARK: -` sections
+5. Include error handling properties (`@Published var errorMessage: String?`, `@Published var showError: Bool`)
+
+### When Creating Services
+1. Services should be stateless or singleton where appropriate
+2. Services never directly update UI (return values or throw errors)
+3. Pass ModelContext or other dependencies via initializer
+4. Include comprehensive error handling
+
+### When Creating Views
+1. Reference ViewModel via `@StateObject` or `@EnvironmentObject`
+2. Use design system components (colors, fonts, spacing)
+3. Include loading, error, and empty states
+4. Add VoiceOver labels for accessibility
+5. Support Dark Mode (happens automatically with semantic colors)
+
+### When Working with SwiftData
+1. Always use FetchDescriptor with predicates
+2. Validate data before saving
+3. Handle save errors gracefully
+4. Delete related entities manually (cascade not automatic)
+5. Query performance: use predicates, not filter in code
+
+## 🧪 Testing Considerations
+- Write unit tests for Services (PetService, HealthUpdateService, etc.)
+- Write integration tests for complete flows (wash → dry → fold)
+- Test multi-pet independence thoroughly
+- Test background/foreground transitions
+- Test error scenarios (database failures, timer corruption)
+- Reference: @ProductionDocs/01_System_Architecture_Overview.md (Testing Strategy section)
+
+## 🎯 Performance Targets
+- Launch time: < 2 seconds (iPhone 12+)
+- Memory usage: < 50MB typical
+- Timer updates: Every 0.5s (smooth countdown)
+- 60 FPS animations
+- No memory leaks (verify with Instruments)
+- Reference: @ProductionDocs/09_Performance_Optimization.md
+
+## 🔍 When You Need More Context
+If you need detailed information about:
+- **Architecture patterns**: Read @ProductionDocs/01_System_Architecture_Overview.md
+- **Data models & queries**: Read @ProductionDocs/02_Database_Design_Data_Models.md
+- **UI components & styling**: Read @ProductionDocs/03_User_Interface_Design_System.md
+- **Timer implementation**: Read @ProductionDocs/05_Timer_Background_System.md
+- **Notifications**: Read @ProductionDocs/06_Notification_System.md
+- **Multi-pet isolation**: Read @ProductionDocs/07_Multi_Pet_Architecture.md
+- **Health system**: Read @ProductionDocs/08_Health_Statistics_System.md
+- **Error handling**: Read @ProductionDocs/13_Error_Handling_Recovery.md
+- **Data migrations**: Read @ProductionDocs/15_Data_Migration_Strategy.md
+- **Notification limits**: Read @ProductionDocs/16_Notification_Management_Limits.md
+- **Quick patterns**: Read @ProductionDocs/Developer_Quick_Reference.md
+
+## 💡 Code Review Checklist
+Before suggesting code, verify:
+- [ ] Follows MVVM + Services architecture
+- [ ] Error handling present with user-friendly messages
+- [ ] Multi-pet isolation maintained (if applicable)
+- [ ] Timers use absolute time (if applicable)
+- [ ] Design system colors/fonts used
+- [ ] No force unwraps without justification
+- [ ] Accessibility labels added
+- [ ] References correct documentation
+- [ ] Matches patterns in Developer_Quick_Reference.md
+
+## 🚀 Deployment Checklist
+Production code must have:
+- [ ] Zero compiler warnings
+- [ ] All error paths handled
+- [ ] No TODO/FIXME comments
+- [ ] No debug print statements
+- [ ] Tests passing
+- [ ] Memory leaks checked (Instruments)
+- [ ] Performance profiled (meets targets)
+- [ ] Dark mode tested
+- [ ] Accessibility tested (VoiceOver)
+
+---
+
+**Remember: This is production code for the App Store. Quality, reliability, and user experience are paramount. When in doubt, reference the documentation in @ProductionDocs/.**
+

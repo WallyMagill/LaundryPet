@@ -12,7 +12,9 @@ import SwiftData
 struct LaundryPetsApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Pet.self,
+            LaundryTask.self,
+            AppSettings.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -25,7 +27,7 @@ struct LaundryPetsApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            TestModelsView()
         }
         .modelContainer(sharedModelContainer)
     }
