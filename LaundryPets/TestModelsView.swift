@@ -51,6 +51,20 @@ struct TestModelsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
+                        // Task Testing
+                        Button(action: createTestTask) {
+                            HStack {
+                                Image(systemName: "doc.badge.plus")
+                                Text("Create Test Task")
+                                    .font(.caption)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Color.purple.opacity(0.2))
+                            .foregroundColor(.purple)
+                            .cornerRadius(8)
+                        }
+                        
                         HStack(spacing: 8) {
                             Button(action: setPetToYesterday) {
                                 VStack(spacing: 4) {
@@ -186,11 +200,26 @@ struct TestModelsView: View {
                                     }
                                 }
                                 
-                                // Cycle Frequency
+                                // Cycle Frequency and Timer Durations
                                 HStack {
                                     Image(systemName: "repeat")
                                         .font(.caption2)
-                                    Text("Cycle: \(pet.cycleFrequencyDays) day\(pet.cycleFrequencyDays == 1 ? "" : "s")")
+                                    Text("Cycle: \(pet.cycleFrequencyDays)d")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Spacer()
+                                    
+                                    Text("Wash: \(pet.washDurationMinutes)m | Dry: \(pet.dryDurationMinutes)m")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                // Statistics
+                                HStack {
+                                    Image(systemName: "chart.bar.fill")
+                                        .font(.caption2)
+                                    Text("Cycles: \(pet.totalCyclesCompleted) | Streak: \(pet.currentStreak) | Best: \(pet.longestStreak)")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -352,6 +381,52 @@ struct TestModelsView: View {
                 // Update the pet
                 petService.updatePetHealth(pet, newHealth: health)
             }
+        }
+    }
+    
+    /// Creates a test LaundryTask for the first pet
+    private func createTestTask() {
+        guard let pet = pets.first else {
+            print("⚠️ No pets available")
+            return
+        }
+        
+        print("📝 Creating test LaundryTask for \(pet.name)...")
+        
+        // Create new task using pet's timer durations
+        let task = LaundryTask(
+            petID: pet.id,
+            washDuration: pet.washDurationMinutes,
+            dryDuration: pet.dryDurationMinutes
+        )
+        
+        // Insert and save
+        modelContext.insert(task)
+        
+        do {
+            try modelContext.save()
+            print("✅ Task created successfully!")
+            print("   Task ID: \(task.id)")
+            print("   Current Stage: \(task.currentStage.rawValue) - \(task.currentStage.displayText)")
+            print("   Wash Duration: \(task.washDurationMinutes) minutes")
+            print("   Dry Duration: \(task.dryDurationMinutes) minutes")
+            print("   Is Completed: \(task.isCompleted)")
+            print("   Is Actionable: \(task.currentStage.isActionable)")
+            print("   Action Button: \(task.currentStage.actionButtonText)")
+            
+            // Show alert with task info
+            healthAlertMessage = """
+            LaundryTask Created! ✅
+            
+            Stage: \(task.currentStage.displayText)
+            Action: \(task.currentStage.actionButtonText)
+            Wash: \(task.washDurationMinutes)m
+            Dry: \(task.dryDurationMinutes)m
+            """
+            showHealthAlert = true
+            
+        } catch {
+            print("❌ Failed to create task: \(error)")
         }
     }
     

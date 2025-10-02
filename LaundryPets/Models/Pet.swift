@@ -51,13 +51,24 @@ final class Pet {
     /// Used to prevent redundant calculations
     var lastHealthUpdate: Date?
     
-    // MARK: - Customization
+    // MARK: - Statistics
     
-    /// Custom icon identifier for the pet
-    /// Optional string identifier for pet avatar/icon selection
-    var customIcon: String?
+    /// Total laundry cycles completed (lifetime)
+    /// Incremented when user taps "Mark Folded"
+    /// Never decreases (even if streak broken)
+    var totalCyclesCompleted: Int
     
-    // MARK: - Laundry Cycle Settings
+    /// Current consecutive streak
+    /// Incremented on completion if cycle finished on time
+    /// Reset to 0 if pet dies or cycle abandoned
+    var currentStreak: Int
+    
+    /// Longest streak ever achieved
+    /// High score for user motivation
+    /// Only increases, never decreases
+    var longestStreak: Int
+    
+    // MARK: - Per-Pet Settings (INDEPENDENT!)
     
     /// How often this pet needs laundry (in days)
     /// Minimum: 1 day
@@ -66,10 +77,17 @@ final class Pet {
     /// Affects health decay rate
     var cycleFrequencyDays: Int
     
-    /// When the current laundry cycle started
-    /// nil = no active cycle
-    /// Used to track time elapsed in current cycle
-    var currentCycleStartDate: Date?
+    /// Wash timer duration (in minutes)
+    /// Default: 45 minutes (typical washing machine)
+    /// Range: 1-120 minutes
+    /// INDEPENDENT per pet (not global setting!)
+    var washDurationMinutes: Int
+    
+    /// Dry timer duration (in minutes)
+    /// Default: 60 minutes (typical dryer)
+    /// Range: 1-180 minutes
+    /// INDEPENDENT per pet (not global setting!)
+    var dryDurationMinutes: Int
     
     // MARK: - Initialization
     
@@ -96,12 +114,19 @@ final class Pet {
         self.name = trimmedName
         self.cycleFrequencyDays = cycleFrequencyDays
         
+        // Statistics (start at zero)
+        self.totalCyclesCompleted = 0
+        self.currentStreak = 0
+        self.longestStreak = 0
+        
+        // Per-Pet Timer Settings (defaults per spec)
+        self.washDurationMinutes = 45  // 45 minutes (typical wash cycle)
+        self.dryDurationMinutes = 60   // 60 minutes (typical dry cycle)
+        
         // Optional properties (initialized as nil)
         self.lastLaundryDate = nil
         self.health = nil
         self.lastHealthUpdate = nil
-        self.customIcon = nil
-        self.currentCycleStartDate = nil
     }
     
     // MARK: - Validation
@@ -124,6 +149,22 @@ final class Pet {
             guard (0...100).contains(health) else {
                 return false
             }
+        }
+        
+        // Validate timer durations
+        guard (1...120).contains(washDurationMinutes) else {
+            return false
+        }
+        
+        guard (1...180).contains(dryDurationMinutes) else {
+            return false
+        }
+        
+        // Validate statistics (should never be negative)
+        guard totalCyclesCompleted >= 0,
+              currentStreak >= 0,
+              longestStreak >= 0 else {
+            return false
         }
         
         return true
