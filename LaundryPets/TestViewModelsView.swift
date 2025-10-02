@@ -24,18 +24,39 @@ struct TestViewModelsView: View {
     @State private var petViewModel: PetViewModel? = nil
     @State private var testCounter: Int = 0
     
+    // Testing progress tracking
+    @State private var petsCreated: Bool = false
+    @State private var petSelected: Bool = false
+    @State private var cycleStarted: Bool = false
+    @State private var settingsTested: Bool = false
+    
     // MARK: - Body
     
     var body: some View {
         NavigationStack {
             List {
+                // Quick Start Guide
+                Section {
+                    quickStartGuide
+                } header: {
+                    Text("🚀 Quick Start")
+                        .font(.headline)
+                }
+                
                 // Section 1: Test PetsViewModel
                 if let petsViewModel = petsViewModel {
                     Section {
                         petsViewModelSection(petsViewModel)
                     } header: {
-                        Text("1. Test PetsViewModel")
-                            .font(.headline)
+                        HStack {
+                            Text("1️⃣ Test Multi-Pet Management")
+                                .font(.headline)
+                            Spacer()
+                            if petsCreated {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                            }
+                        }
                     }
                 }
                 
@@ -44,8 +65,15 @@ struct TestViewModelsView: View {
                     Section {
                         settingsViewModelSection(settingsViewModel)
                     } header: {
-                        Text("2. Test SettingsViewModel")
-                            .font(.headline)
+                        HStack {
+                            Text("2️⃣ Test Settings Persistence")
+                                .font(.headline)
+                            Spacer()
+                            if settingsTested {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                            }
+                        }
                     }
                 }
                 
@@ -54,26 +82,38 @@ struct TestViewModelsView: View {
                     Section {
                         petViewModelSection(petViewModel)
                     } header: {
-                        Text("3. Test PetViewModel")
-                            .font(.headline)
+                        HStack {
+                            Text("3️⃣ Test Pet Workflow")
+                                .font(.headline)
+                            Spacer()
+                            if cycleStarted {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                            }
+                        }
                     }
                 }
                 
-                // Active Timers Overview
+                // Active Timers Overview - CRITICAL TEST
                 if let petsVM = petsViewModel, !petsVM.pets.isEmpty {
                     Section {
                         activeTimersOverview
                     } header: {
-                        Text("⚠️ Multi-Pet Timer Check")
+                        Text("⚠️ CRITICAL: Multi-Pet Timer Independence")
                             .font(.headline)
+                            .foregroundColor(.orange)
+                    } footer: {
+                        Text("This is the MOST IMPORTANT test. Each pet must have its own independent timer.")
+                            .font(.caption)
+                            .foregroundColor(.orange)
                     }
                 }
                 
-                // Instructions
+                // Testing Progress Summary
                 Section {
-                    instructionsSection
+                    testingProgressSummary
                 } header: {
-                    Text("Testing Instructions")
+                    Text("📊 Testing Progress")
                         .font(.headline)
                 }
                 
@@ -81,12 +121,12 @@ struct TestViewModelsView: View {
                 Section {
                     resetSection
                 } header: {
-                    Text("Reset Testing Data")
-                            .font(.headline)
+                    Text("🗑️ Reset & Start Over")
+                        .font(.headline)
                 }
             }
-            .navigationTitle("Test ViewModels")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Phase 2 Testing")
+            .navigationBarTitleDisplayMode(.large)
             .onAppear {
                 if petsViewModel == nil {
                     petsViewModel = PetsViewModel(modelContext: modelContext)
@@ -101,136 +141,230 @@ struct TestViewModelsView: View {
         }
     }
     
+    // MARK: - Quick Start Guide
+    
+    private var quickStartGuide: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Follow these steps in order:")
+                .font(.subheadline)
+                .fontWeight(.bold)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                guideStep("1", "Create 2-3 test pets below", completed: petsCreated)
+                guideStep("2", "Toggle settings to test persistence", completed: settingsTested)
+                guideStep("3", "Select a pet and start a cycle", completed: petSelected)
+                guideStep("4", "Start cycles on multiple pets", completed: cycleStarted)
+                guideStep("5", "Verify timers run independently", completed: false)
+            }
+            
+            Text("⏱️ Timers are set to 1 minute for quick testing")
+                .font(.caption)
+                .foregroundColor(.blue)
+                .padding(.top, 4)
+        }
+        .padding(.vertical, 4)
+    }
+    
+    @ViewBuilder
+    private func guideStep(_ number: String, _ text: String, completed: Bool) -> some View {
+        HStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(completed ? Color.green : Color.gray.opacity(0.3))
+                    .frame(width: 24, height: 24)
+                if completed {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                } else {
+                    Text(number)
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                }
+            }
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(completed ? .secondary : .primary)
+                .strikethrough(completed)
+        }
+    }
+    
+    // MARK: - Testing Progress Summary
+    
+    private var testingProgressSummary: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 20) {
+                progressIndicator(
+                    title: "Pets Created",
+                    completed: petsCreated,
+                    icon: "person.3.fill"
+                )
+                progressIndicator(
+                    title: "Settings Tested",
+                    completed: settingsTested,
+                    icon: "gearshape.fill"
+                )
+            }
+            
+            HStack(spacing: 20) {
+                progressIndicator(
+                    title: "Pet Selected",
+                    completed: petSelected,
+                    icon: "hand.point.up.left.fill"
+                )
+                progressIndicator(
+                    title: "Cycle Started",
+                    completed: cycleStarted,
+                    icon: "timer"
+                )
+            }
+            
+            let totalProgress = [petsCreated, settingsTested, petSelected, cycleStarted].filter { $0 }.count
+            ProgressView(value: Double(totalProgress), total: 4.0)
+                .tint(.green)
+            
+            Text("\(totalProgress) of 4 core tests completed")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    @ViewBuilder
+    private func progressIndicator(title: String, completed: Bool, icon: String) -> some View {
+        VStack {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(completed ? .green : .gray)
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(completed ? Color.green.opacity(0.1) : Color.gray.opacity(0.05))
+        .cornerRadius(8)
+    }
+    
     // MARK: - PetsViewModel Section
     
     @ViewBuilder
     private func petsViewModelSection(_ petsViewModel: PetsViewModel) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Step 1: Pets Count
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Step 1: Pets Loaded")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    Text("Count: \(petsViewModel.pets.count)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-                if !petsViewModel.pets.isEmpty {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                }
-            }
+        VStack(alignment: .leading, spacing: 16) {
+            // Current Status
+            statusBox(
+                title: "Pets in Database",
+                value: "\(petsViewModel.pets.count)",
+                color: .blue,
+                icon: "person.3.fill"
+            )
             
-            // Step 2: Create Pet
-            Button(action: {
+            // Step 1: Create Pet Button
+            actionButton(
+                title: "Create Test Pet",
+                subtitle: "1 min wash/dry timers",
+                icon: "plus.circle.fill",
+                color: .blue
+            ) {
                 testCounter += 1
                 if let newPet = petsViewModel.createPet(name: "Test Pet \(testCounter)", cycleFrequencyDays: 7) {
-                    // Set short test durations
                     newPet.washDurationMinutes = 1
                     newPet.dryDurationMinutes = 1
                     try? modelContext.save()
+                    petsCreated = true
                     print("✅ Created pet with 1 min wash/dry")
                 }
-            }) {
-                HStack {
-                    Image(systemName: "plus.circle.fill")
-                    Text("Step 2: Create Test Pet (1 min timers)")
-                        .font(.subheadline)
-                    Spacer()
-                }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .background(Color.blue.opacity(0.1))
-                .foregroundColor(.blue)
-                .cornerRadius(8)
             }
             
-            // Step 3: Pet List
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Step 3: Select Pet for Testing")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                
-                if petsViewModel.pets.isEmpty {
-                    Text("No pets yet - create one above")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .italic()
-                } else {
+            // Pet List
+            if petsViewModel.pets.isEmpty {
+                infoBox(
+                    text: "No pets yet. Create your first test pet above!",
+                    color: .orange
+                )
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Select a pet to test:")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    
                     ForEach(petsViewModel.pets, id: \.id) { pet in
-                        Button(action: {
-                            selectedPet = pet
-                            petViewModel = PetViewModel(pet: pet, modelContext: modelContext)
-                            print("✅ Selected: \(pet.name)")
-                        }) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(pet.name)
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.primary)
-                                    
-                                    HStack(spacing: 12) {
-                                        Text("HP: \(pet.health ?? 0)%")
-                                            .font(.caption)
-                                        Text(pet.currentState.rawValue)
-                                            .font(.caption)
-                                        Text("\(pet.washDurationMinutes)m/\(pet.dryDurationMinutes)m")
-                                            .font(.caption)
-                                            .foregroundColor(.blue)
-                                    }
-                                    .foregroundColor(.secondary)
-                                }
-                                
-                                Spacer()
-                                
-                                if selectedPet?.id == pet.id {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                }
-                            }
-                            .padding(.vertical, 4)
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button("Delete", role: .destructive) {
-                                petsViewModel.deletePet(pet)
-                                if selectedPet?.id == pet.id {
-                                    selectedPet = nil
-                                    petViewModel = nil
-                                }
-                            }
-                        }
+                        petCard(pet: pet, petsViewModel: petsViewModel)
                     }
                 }
             }
             
-            // Step 4: Refresh
-            Button(action: {
+            // Refresh Button
+            actionButton(
+                title: "Refresh Pet List",
+                subtitle: "Reload from database",
+                icon: "arrow.clockwise",
+                color: .green
+            ) {
                 petsViewModel.refreshPets()
-            }) {
-                HStack {
-                    Image(systemName: "arrow.clockwise")
-                    Text("Step 4: Refresh Pet List")
-                        .font(.subheadline)
-                    Spacer()
-                }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .background(Color.green.opacity(0.1))
-                .foregroundColor(.green)
-                .cornerRadius(8)
             }
             
-            // Errors
+            // Error Display
             if petsViewModel.showError {
-                Text(petsViewModel.errorMessage ?? "Unknown error")
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .padding(8)
-                    .background(Color.red.opacity(0.1))
-                    .cornerRadius(6)
+                errorBox(message: petsViewModel.errorMessage ?? "Unknown error")
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func petCard(pet: Pet, petsViewModel: PetsViewModel) -> some View {
+        Button(action: {
+            selectedPet = pet
+            petViewModel = PetViewModel(pet: pet, modelContext: modelContext)
+            petSelected = true
+            print("✅ Selected: \(pet.name)")
+        }) {
+            HStack {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(pet.name)
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                    
+                    HStack(spacing: 16) {
+                        Label("\(pet.health ?? 0)%", systemImage: "heart.fill")
+                            .font(.caption)
+                        Label(pet.currentState.rawValue, systemImage: "face.smiling")
+                            .font(.caption)
+                        Label("\(pet.washDurationMinutes)m/\(pet.dryDurationMinutes)m", systemImage: "timer")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+                    .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                if selectedPet?.id == pet.id {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.green)
+                } else {
+                    Image(systemName: "circle")
+                        .font(.title3)
+                        .foregroundColor(.gray)
+                }
+            }
+            .padding()
+            .background(selectedPet?.id == pet.id ? Color.green.opacity(0.1) : Color.gray.opacity(0.05))
+            .cornerRadius(12)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+                petsViewModel.deletePet(pet)
+                if selectedPet?.id == pet.id {
+                    selectedPet = nil
+                    petViewModel = nil
+                    petSelected = false
+                }
+            } label: {
+                Label("Delete", systemImage: "trash")
             }
         }
     }
@@ -239,244 +373,260 @@ struct TestViewModelsView: View {
     
     @ViewBuilder
     private func settingsViewModelSection(_ settingsViewModel: SettingsViewModel) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Current Settings
+        VStack(alignment: .leading, spacing: 16) {
+            infoBox(
+                text: "Toggle these settings. Force quit the app and reopen to verify they persist.",
+                color: .blue
+            )
+            
             if let settings = settingsViewModel.settings {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Current Settings")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Notifications: \(settings.notificationsEnabled ? "On" : "Off")")
-                            .font(.caption)
-                        Text("Appearance: \(settings.appearanceMode.rawValue)")
-                            .font(.caption)
-                        Text("Sounds: \(settings.soundsEnabled ? "On" : "Off")")
-                            .font(.caption)
-                        Text("Haptics: \(settings.hapticsEnabled ? "On" : "Off")")
-                            .font(.caption)
-                    }
-                    .foregroundColor(.secondary)
-                    .padding(8)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(6)
-                }
-                
-                // Toggle Settings
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Toggle Settings")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    
-                    VStack(spacing: 12) {
-                        Toggle("Notifications", isOn: Binding(
+                VStack(spacing: 16) {
+                    // Notifications
+                    settingToggle(
+                        title: "Notifications",
+                        icon: "bell.fill",
+                        isOn: Binding(
                             get: { settings.notificationsEnabled },
-                            set: { settingsViewModel.updateNotificationsEnabled($0) }
-                        ))
-                        
-                        HStack {
-                            Text("Appearance")
-                            Spacer()
-                            Picker("", selection: Binding(
-                                get: { settings.appearanceMode },
-                                set: { settingsViewModel.updateAppearanceMode($0) }
-                            )) {
-                                ForEach(AppearanceMode.allCases, id: \.self) { mode in
-                                    Text(mode.displayName).tag(mode)
-                                }
+                            set: {
+                                settingsViewModel.updateNotificationsEnabled($0)
+                                settingsTested = true
                             }
-                            .pickerStyle(.menu)
+                        )
+                    )
+                    
+                    // Appearance
+                    HStack {
+                        Image(systemName: "paintbrush.fill")
+                            .foregroundColor(.blue)
+                            .frame(width: 30)
+                        Text("Appearance")
+                            .font(.subheadline)
+                        Spacer()
+                        Picker("", selection: Binding(
+                            get: { settings.appearanceMode },
+                            set: {
+                                settingsViewModel.updateAppearanceMode($0)
+                                settingsTested = true
+                            }
+                        )) {
+                            ForEach(AppearanceMode.allCases, id: \.self) { mode in
+                                Text(mode.displayName).tag(mode)
+                            }
                         }
-                        
-                        Toggle("Sounds", isOn: Binding(
-                            get: { settings.soundsEnabled },
-                            set: { settingsViewModel.updateSoundsEnabled($0) }
-                        ))
-                        
-                        Toggle("Haptics", isOn: Binding(
-                            get: { settings.hapticsEnabled },
-                            set: { settingsViewModel.updateHapticsEnabled($0) }
-                        ))
+                        .pickerStyle(.segmented)
+                        .frame(width: 200)
                     }
-                    .padding(8)
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(6)
+                    .padding()
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(12)
+                    
+                    // Sounds
+                    settingToggle(
+                        title: "Sounds",
+                        icon: "speaker.wave.2.fill",
+                        isOn: Binding(
+                            get: { settings.soundEnabled },
+                            set: {
+                                settingsViewModel.updateSoundsEnabled($0)
+                                settingsTested = true
+                            }
+                        )
+                    )
+                    
+                    // Haptics
+                    settingToggle(
+                        title: "Haptics",
+                        icon: "hand.tap.fill",
+                        isOn: Binding(
+                            get: { settings.hapticsEnabled },
+                            set: {
+                                settingsViewModel.updateHapticsEnabled($0)
+                                settingsTested = true
+                            }
+                        )
+                    )
                 }
             }
             
-            // Errors
+            // Error Display
             if settingsViewModel.showError {
-                Text(settingsViewModel.errorMessage ?? "Unknown error")
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .padding(8)
-                    .background(Color.red.opacity(0.1))
-                    .cornerRadius(6)
+                errorBox(message: settingsViewModel.errorMessage ?? "Unknown error")
             }
         }
+    }
+    
+    @ViewBuilder
+    private func settingToggle(title: String, icon: String, isOn: Binding<Bool>) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundColor(.blue)
+                .frame(width: 30)
+            Text(title)
+                .font(.subheadline)
+            Spacer()
+            Toggle("", isOn: isOn)
+        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(12)
     }
     
     // MARK: - PetViewModel Section
     
     @ViewBuilder
     private func petViewModelSection(_ viewModel: PetViewModel) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header
+        VStack(alignment: .leading, spacing: 16) {
+            // Header with deselect
             HStack {
-                Text("Testing: \(viewModel.pet.name)")
-                    .font(.subheadline)
-                    .fontWeight(.bold)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Testing: \(viewModel.pet.name)")
+                        .font(.headline)
+                    Text("Follow the workflow below")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 Spacer()
-                Button("Deselect") {
+                Button(action: {
                     selectedPet = nil
                     petViewModel = nil
+                    petSelected = false
+                }) {
+                    Label("Deselect", systemImage: "xmark.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(.gray)
                 }
-                .font(.caption)
-                .foregroundColor(.gray)
             }
             
-            // Pet State
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Pet State")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Health: \(viewModel.healthPercentage)%")
-                            .font(.caption)
-                        Text("State: \(viewModel.petState.rawValue)")
-                            .font(.caption)
-                    }
-                    .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    Circle()
-                        .fill(healthColor(viewModel.healthPercentage))
-                        .frame(width: 20, height: 20)
-                }
-                .padding(8)
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(6)
+            Divider()
+            
+            // Pet Stats
+            HStack(spacing: 12) {
+                statBox(
+                    title: "Health",
+                    value: "\(viewModel.healthPercentage)%",
+                    color: healthColor(viewModel.healthPercentage),
+                    icon: "heart.fill"
+                )
+                statBox(
+                    title: "State",
+                    value: viewModel.petState.rawValue,
+                    color: .blue,
+                    icon: "face.smiling"
+                )
+                statBox(
+                    title: "Cycles",
+                    value: "\(viewModel.pet.totalCyclesCompleted)",
+                    color: .purple,
+                    icon: "arrow.triangle.2.circlepath"
+                )
             }
             
-            // Timer State
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Timer State")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                
-                VStack(alignment: .leading, spacing: 4) {
+            // Timer Status
+            if viewModel.timerActive {
+                VStack(spacing: 8) {
                     HStack {
-                        Text("Active:")
-                            .font(.caption)
-                        Text(viewModel.timerActive ? "YES" : "NO")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(viewModel.timerActive ? .green : .secondary)
+                        Image(systemName: "timer")
+                            .foregroundColor(.green)
+                        Text("TIMER ACTIVE")
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.green)
+                        Spacer()
+                        Text(formatTime(viewModel.timeRemaining))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.orange)
+                            .monospacedDigit()
                     }
                     
-                    if viewModel.timerActive {
-                        HStack {
-                            Text("Type:")
-                                .font(.caption)
-                            Text(viewModel.timerType.rawValue)
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                        }
-                        
-                        HStack {
-                            Text("Remaining:")
-                                .font(.caption)
-                            Text(formatTime(viewModel.timeRemaining))
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.orange)
-                        }
-                    }
+                    Text("Type: \(viewModel.timerType.rawValue)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-                .foregroundColor(.secondary)
-                .padding(8)
-                .background(Color.orange.opacity(0.1))
-                .cornerRadius(6)
+                .padding()
+                .background(Color.green.opacity(0.1))
+                .cornerRadius(12)
+            } else {
+                infoBox(text: "No active timer", color: .gray)
             }
             
-            // Task State
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Current Task")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                
-                if let task = viewModel.currentTask {
-                    Text("Stage: \(task.currentStage.rawValue)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(8)
-                        .background(Color.purple.opacity(0.1))
-                        .cornerRadius(6)
-                } else {
-                    Text("No active task")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .italic()
-                        .padding(8)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(6)
+            // Task Info
+            if let task = viewModel.currentTask {
+                HStack {
+                    Image(systemName: "checklist")
+                        .foregroundColor(.purple)
+                    Text("Current Stage: \(task.currentStage.rawValue)")
+                        .font(.subheadline)
+                    Spacer()
                 }
+                .padding()
+                .background(Color.purple.opacity(0.1))
+                .cornerRadius(12)
             }
+            
+            Divider()
             
             // Workflow Buttons
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Laundry Workflow")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+            Text("Laundry Workflow:")
+                .font(.subheadline)
+                .fontWeight(.bold)
+            
+            VStack(spacing: 12) {
+                workflowButton(
+                    title: "Start Cycle",
+                    subtitle: "Creates task & starts wash",
+                    icon: "play.circle.fill",
+                    color: .blue,
+                    disabled: viewModel.timerActive
+                ) {
+                    viewModel.startCycle()
+                    cycleStarted = true
+                }
                 
-                VStack(spacing: 8) {
-                    HStack(spacing: 8) {
-                        Button("Start Cycle") {
-                            viewModel.startCycle()
-                        }
-                        .buttonStyle(WorkflowButtonStyle(color: .blue, disabled: viewModel.timerActive))
-                        .disabled(viewModel.timerActive)
-                        
-                        Button("Start Wash") {
-                            viewModel.startWash()
-                        }
-                        .buttonStyle(WorkflowButtonStyle(color: .green, disabled: viewModel.timerActive))
-                        .disabled(viewModel.timerActive)
-                    }
-                    
-                    HStack(spacing: 8) {
-                        Button("Start Dry") {
-                            viewModel.startDry()
-                        }
-                        .buttonStyle(WorkflowButtonStyle(color: .orange, disabled: viewModel.timerActive))
-                        .disabled(viewModel.timerActive)
-                        
-                        Button("Complete Cycle") {
-                            viewModel.completeCycle()
-                        }
-                        .buttonStyle(WorkflowButtonStyle(color: .green, disabled: false))
-                    }
-                    
-                    Button("Cancel Timer") {
-                        viewModel.cancelTimer()
-                    }
-                    .buttonStyle(WorkflowButtonStyle(color: .red, disabled: !viewModel.timerActive))
-                    .disabled(!viewModel.timerActive)
+                workflowButton(
+                    title: "Start Wash",
+                    subtitle: "Begin wash phase",
+                    icon: "drop.fill",
+                    color: .cyan,
+                    disabled: viewModel.timerActive
+                ) {
+                    viewModel.startWash()
+                }
+                
+                workflowButton(
+                    title: "Start Dry",
+                    subtitle: "Begin dry phase",
+                    icon: "flame.fill",
+                    color: .orange,
+                    disabled: viewModel.timerActive
+                ) {
+                    viewModel.startDry()
+                }
+                
+                workflowButton(
+                    title: "Complete Cycle",
+                    subtitle: "Mark laundry done",
+                    icon: "checkmark.circle.fill",
+                    color: .green,
+                    disabled: false
+                ) {
+                    viewModel.completeCycle()
+                }
+                
+                workflowButton(
+                    title: "Cancel Timer",
+                    subtitle: "Stop current timer",
+                    icon: "xmark.circle.fill",
+                    color: .red,
+                    disabled: !viewModel.timerActive
+                ) {
+                    viewModel.cancelTimer()
                 }
             }
             
-            // Errors
+            // Error Display
             if viewModel.showError {
-                Text(viewModel.errorMessage ?? "Unknown error")
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .padding(8)
-                    .background(Color.red.opacity(0.1))
-                    .cornerRadius(6)
+                errorBox(message: viewModel.errorMessage ?? "Unknown error")
             }
         }
     }
@@ -484,91 +634,59 @@ struct TestViewModelsView: View {
     // MARK: - Active Timers Overview
     
     private var activeTimersOverview: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("CRITICAL: Verify timer independence")
+        VStack(alignment: .leading, spacing: 12) {
+            Text("🎯 Test Objective: Verify Timer Independence")
                 .font(.subheadline)
-                .fontWeight(.semibold)
+                .fontWeight(.bold)
             
-            Text("Each pet's timer should count down independently")
+            Text("Start cycles on 2+ pets. Each timer should count down independently without affecting the others.")
                 .font(.caption)
                 .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            
+            Divider()
             
             if let petsVM = petsViewModel {
-                ForEach(petsVM.pets, id: \.id) { pet in
-                    TimerStatusRow(pet: pet, modelContext: modelContext)
+                if petsVM.pets.isEmpty {
+                    infoBox(text: "Create pets first to test timers", color: .orange)
+                } else {
+                    ForEach(petsVM.pets, id: \.id) { pet in
+                        TimerStatusRow(pet: pet, modelContext: modelContext)
+                    }
                 }
             }
         }
-        .padding(8)
-        .background(Color.yellow.opacity(0.15))
-        .cornerRadius(8)
-    }
-    
-    // MARK: - Instructions Section
-    
-    private var instructionsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Testing Flow:")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-            
-            Text("⚠️ Test pets use 1 min wash/dry for fast testing")
-                .font(.caption)
-                .foregroundColor(.orange)
-                .padding(6)
-                .background(Color.orange.opacity(0.1))
-                .cornerRadius(4)
-            
-            VStack(alignment: .leading, spacing: 6) {
-                instructionRow("1", "Create 2-3 test pets")
-                instructionRow("2", "Select first pet, start cycle")
-                instructionRow("3", "Select second pet, start cycle")
-                instructionRow("4", "Check timer overview - both running?")
-                instructionRow("5", "Switch between pets - timers independent?")
-                instructionRow("6", "Complete a full cycle on one pet")
-                instructionRow("7", "Verify statistics updated")
-                instructionRow("8", "Toggle settings, verify persistence")
-            }
-        }
-    }
-    
-    @ViewBuilder
-    private func instructionRow(_ number: String, _ text: String) -> some View {
-        HStack(spacing: 8) {
-            Text(number)
-                .font(.caption)
-                .fontWeight(.bold)
-                .foregroundColor(.blue)
-            Text(text)
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
+        .padding()
+        .background(Color.yellow.opacity(0.1))
+        .cornerRadius(12)
     }
     
     // MARK: - Reset Section
     
     private var resetSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Clear all test data")
-                .font(.caption)
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Clear all test data and start fresh")
+                .font(.subheadline)
                 .foregroundColor(.secondary)
             
             Button(action: resetAllData) {
                 HStack {
                     Image(systemName: "trash.circle.fill")
-                    Text("Reset All Data")
+                        .font(.title2)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Reset All Data")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Text("Deletes all pets, tasks & resets settings")
+                            .font(.caption)
+                    }
                     Spacer()
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
+                .padding()
                 .background(Color.red.opacity(0.1))
                 .foregroundColor(.red)
-                .cornerRadius(8)
+                .cornerRadius(12)
             }
-            
-            Text("⚠️ Deletes all pets, tasks, settings")
-                .font(.caption)
-                .foregroundColor(.orange)
         }
     }
     
@@ -582,11 +700,138 @@ struct TestViewModelsView: View {
         selectedPet = nil
         petViewModel = nil
         testCounter = 0
+        petsCreated = false
+        petSelected = false
+        cycleStarted = false
+        settingsTested = false
         
         petsViewModel?.clearError()
         settingsViewModel?.clearError()
         
         print("✅ All data cleared")
+    }
+    
+    // MARK: - Reusable Components
+    
+    @ViewBuilder
+    private func statusBox(title: String, value: String, color: Color, icon: String) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(color)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(value)
+                    .font(.title3)
+                    .fontWeight(.bold)
+            }
+            Spacer()
+        }
+        .padding()
+        .background(color.opacity(0.1))
+        .cornerRadius(12)
+    }
+    
+    @ViewBuilder
+    private func statBox(title: String, value: String, color: Color, icon: String) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundColor(color)
+            Text(value)
+                .font(.headline)
+                .fontWeight(.bold)
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(color.opacity(0.1))
+        .cornerRadius(12)
+    }
+    
+    @ViewBuilder
+    private func actionButton(title: String, subtitle: String, icon: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.title2)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text(subtitle)
+                        .font(.caption)
+                }
+                Spacer()
+            }
+            .padding()
+            .background(color.opacity(0.1))
+            .foregroundColor(color)
+            .cornerRadius(12)
+        }
+    }
+    
+    @ViewBuilder
+    private func workflowButton(title: String, subtitle: String, icon: String, color: Color, disabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .frame(width: 30)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text(subtitle)
+                        .font(.caption)
+                }
+                Spacer()
+                if disabled {
+                    Image(systemName: "lock.fill")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+            }
+            .padding()
+            .background(disabled ? Color.gray.opacity(0.1) : color.opacity(0.15))
+            .foregroundColor(disabled ? .gray : color)
+            .cornerRadius(12)
+        }
+        .disabled(disabled)
+    }
+    
+    @ViewBuilder
+    private func infoBox(text: String, color: Color) -> some View {
+        HStack {
+            Image(systemName: "info.circle.fill")
+                .foregroundColor(color)
+            Text(text)
+                .font(.caption)
+                .foregroundColor(.primary)
+            Spacer()
+        }
+        .padding()
+        .background(color.opacity(0.1))
+        .cornerRadius(12)
+    }
+    
+    @ViewBuilder
+    private func errorBox(message: String) -> some View {
+        HStack {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.red)
+            Text(message)
+                .font(.caption)
+                .foregroundColor(.primary)
+            Spacer()
+        }
+        .padding()
+        .background(Color.red.opacity(0.1))
+        .cornerRadius(12)
     }
     
     // MARK: - Helpers
@@ -623,15 +868,24 @@ struct TimerStatusRow: View {
     
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(pet.name)
                     .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .fontWeight(.bold)
                 
                 if timerChecker.isActive {
-                    Text("\(timerChecker.timerType.rawValue): \(formatTime(timerChecker.timeRemaining))")
-                        .font(.caption)
-                        .foregroundColor(.green)
+                    HStack(spacing: 8) {
+                        Text(timerChecker.timerType.rawValue.uppercased())
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.green)
+                        Text("•")
+                            .foregroundColor(.gray)
+                        Text(formatTime(timerChecker.timeRemaining))
+                            .font(.caption)
+                            .monospacedDigit()
+                            .foregroundColor(.orange)
+                    }
                 } else {
                     Text("No active timer")
                         .font(.caption)
@@ -642,15 +896,23 @@ struct TimerStatusRow: View {
             Spacer()
             
             if timerChecker.isActive {
+                ZStack {
+                    Circle()
+                        .fill(Color.green.opacity(0.2))
+                        .frame(width: 32, height: 32)
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 16, height: 16)
+                }
+            } else {
                 Circle()
-                    .fill(Color.green)
-                    .frame(width: 12, height: 12)
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 16, height: 16)
             }
         }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 8)
-        .background(timerChecker.isActive ? Color.green.opacity(0.1) : Color.clear)
-        .cornerRadius(6)
+        .padding()
+        .background(timerChecker.isActive ? Color.green.opacity(0.05) : Color.gray.opacity(0.02))
+        .cornerRadius(12)
     }
     
     private func formatTime(_ seconds: TimeInterval) -> String {
@@ -685,28 +947,10 @@ class TimerStatusChecker: ObservableObject {
     }
 }
 
-// MARK: - Workflow Button Style
-
-struct WorkflowButtonStyle: ButtonStyle {
-    let color: Color
-    let disabled: Bool
-    
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.caption)
-            .padding(.vertical, 6)
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity)
-            .background(color.opacity(disabled ? 0.3 : 0.8))
-            .foregroundColor(.white)
-            .cornerRadius(6)
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-    }
-}
-
 // MARK: - Preview
 
 #Preview {
     TestViewModelsView()
         .modelContainer(for: [Pet.self, LaundryTask.self, AppSettings.self])
 }
+

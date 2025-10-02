@@ -121,7 +121,7 @@ final class SettingsViewModel: ObservableObject {
             return
         }
         
-        settings.soundsEnabled = enabled
+        settings.soundEnabled = enabled
         saveSettings()
     }
     

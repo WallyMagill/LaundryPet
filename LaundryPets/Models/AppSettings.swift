@@ -22,7 +22,7 @@ final class AppSettings {
     
     /// Play sound with notifications
     /// Only applies when notificationsEnabled = true
-    var soundsEnabled: Bool
+    var soundEnabled: Bool
     
     /// Enable haptic feedback for interactions
     /// Affects button taps, timer completions, and other UI interactions
@@ -42,7 +42,7 @@ final class AppSettings {
     /// ⚠️ SINGLETON: Check if AppSettings already exists before calling init()
     init() {
         self.notificationsEnabled = true
-        self.soundsEnabled = true
+        self.soundEnabled = true
         self.hapticsEnabled = true
         self.appearanceMode = .system
     }
