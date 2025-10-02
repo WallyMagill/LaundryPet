@@ -237,26 +237,34 @@ final class PetTimerService: ObservableObject {
         // Cancel any existing timer
         timerCancellable?.cancel()
         
-        // Create timer that publishes every second
+        // Create timer that fires every 1 second
         timerCancellable = Timer.publish(every: 1.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
                 
-                // Calculate remaining time
-                guard let end = self.endTime else {
+                // CRITICAL: Calculate remaining time from absolute endTime
+                guard let endTime = self.endTime else {
+                    print("❌ No endTime available")
                     self.clearTimerState()
                     return
                 }
                 
-                let remaining = end.timeIntervalSince(Date())
+                // Calculate time remaining
+                let remaining = endTime.timeIntervalSinceNow
                 
-                // Check if timer completed
+                // Update published property (this triggers UI update)
+                self.timeRemaining = max(0, remaining)
+                
+                // Debug: Print every second (can be commented out in production)
+                #if DEBUG
+                print("⏱️ Timer tick - Remaining: \(String(format: "%.1f", self.timeRemaining))s")
+                #endif
+                
+                // Check for completion
                 if remaining <= 0 {
+                    print("✅ Timer reached zero!")
                     self.handleTimerCompletion()
-                } else {
-                    // Update remaining time
-                    self.timeRemaining = max(0, remaining)
                 }
             }
         
