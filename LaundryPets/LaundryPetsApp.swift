@@ -27,7 +27,7 @@ struct LaundryPetsApp: App {
 
     var body: some Scene {
         WindowGroup {
-            TestModelsView()
+            ContentView()
         }
         .modelContainer(sharedModelContainer)
     }
