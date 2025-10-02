@@ -18,20 +18,13 @@ struct TestTimerView: View {
     
     @State private var testPet: Pet?
     @State private var petService: PetService?
-    @StateObject private var timerService: PetTimerService
+    @State private var timerService: PetTimerService?
     
     @State private var showStatusAlert = false
     @State private var statusMessage = ""
     @State private var showCompletionAlert = false
-    
-    // MARK: - Initialization
-    
-    init() {
-        // Initialize with a placeholder UUID
-        // Will be updated when test pet is created
-        let placeholderID = UUID()
-        _timerService = StateObject(wrappedValue: PetTimerService(petID: placeholderID))
-    }
+    @State private var completionObserver: NSObjectProtocol?
+    @State private var initialDuration: TimeInterval = 0
     
     // MARK: - Body
     
@@ -58,19 +51,25 @@ struct TestTimerView: View {
             .navigationTitle("Timer System Test")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
+                print("🔄 TestTimerView appeared")
                 setupTestPet()
-                observeTimerCompletion()
+                initializeTimerService()
+                setupCompletionObserver()
                 startGlobalHealthUpdates()
+                checkTimerRestoration()
+            }
+            .onDisappear {
+                cleanupObservers()
             }
             .alert("Timer Status", isPresented: $showStatusAlert) {
                 Button("OK") { }
             } message: {
                 Text(statusMessage)
             }
-            .alert("🎉 Timer Completed!", isPresented: $showCompletionAlert) {
+            .alert("Timer Completed! 🎉", isPresented: $showCompletionAlert) {
                 Button("OK") { }
             } message: {
-                Text("The timer has finished successfully!")
+                Text("The timer has finished!")
             }
         }
     }
@@ -98,65 +97,71 @@ struct TestTimerView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
             
-            // Large Time Display
-            ZStack {
-                // Progress Circle
-                Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 12)
-                    .frame(width: 200, height: 200)
-                
-                Circle()
-                    .trim(from: 0, to: progressPercentage)
-                    .stroke(progressColor, style: StrokeStyle(lineWidth: 12, lineCap: .round))
-                    .frame(width: 200, height: 200)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 0.5), value: progressPercentage)
-                
-                // Time Text
-                VStack(spacing: 8) {
-                    Text(formattedTime)
-                        .font(.system(size: 48, weight: .bold, design: .monospaced))
-                        .foregroundColor(progressColor)
+            if let service = timerService {
+                // Large Time Display
+                ZStack {
+                    // Progress Circle
+                    Circle()
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 12)
+                        .frame(width: 200, height: 200)
                     
-                    Text(timerService.timerType.displayName)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            // Timer State Info
-            VStack(spacing: 8) {
-                HStack {
-                    Text("Status:")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(timerService.isActive ? "ACTIVE" : "INACTIVE")
-                        .fontWeight(.semibold)
-                        .foregroundColor(timerService.isActive ? .green : .red)
-                }
-                
-                if let endTime = timerService.endTime {
-                    HStack {
-                        Text("End Time:")
+                    Circle()
+                        .trim(from: 0, to: progressPercentage)
+                        .stroke(progressColor, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                        .frame(width: 200, height: 200)
+                        .rotationEffect(.degrees(-90))
+                        .animation(.linear(duration: 0.5), value: progressPercentage)
+                    
+                    // Time Text
+                    VStack(spacing: 8) {
+                        Text(formattedTime)
+                            .font(.system(size: 48, weight: .bold, design: .monospaced))
+                            .foregroundColor(progressColor)
+                        
+                        Text(service.timerType.displayName)
+                            .font(.caption)
                             .foregroundColor(.secondary)
-                        Spacer()
-                        Text(formattedEndTime(endTime))
-                            .fontWeight(.medium)
                     }
                 }
                 
-                HStack {
-                    Text("Remaining:")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(String(format: "%.1f seconds", timerService.timeRemaining))
-                        .fontWeight(.medium)
+                // Timer State Info
+                VStack(spacing: 8) {
+                    HStack {
+                        Text("Status:")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(service.isActive ? "ACTIVE" : "INACTIVE")
+                            .fontWeight(.semibold)
+                            .foregroundColor(service.isActive ? .green : .red)
+                    }
+                    
+                    if let endTime = service.endTime {
+                        HStack {
+                            Text("End Time:")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text(formattedEndTime(endTime))
+                                .fontWeight(.medium)
+                        }
+                    }
+                    
+                    HStack {
+                        Text("Remaining:")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(String(format: "%.1f seconds", service.timeRemaining))
+                            .fontWeight(.medium)
+                    }
                 }
+                .font(.subheadline)
+                .padding()
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(8)
+            } else {
+                Text("Initializing timer service...")
+                    .foregroundColor(.secondary)
+                    .padding()
             }
-            .font(.subheadline)
-            .padding()
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(8)
         }
     }
     
@@ -170,17 +175,20 @@ struct TestTimerView: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 testButton(title: "Start 60s", icon: "play.fill", color: .green) {
                     print("🧪 Starting 60-second timer")
-                    timerService.startTimer(duration: 60, type: .wash)
+                    initialDuration = 60 // Store initial duration for progress calculation
+                    timerService?.startTimer(duration: 60, type: .wash)
                 }
                 
                 testButton(title: "Start 10s", icon: "bolt.fill", color: .blue) {
                     print("🧪 Starting 10-second timer")
-                    timerService.startTimer(duration: 10, type: .dry)
+                    initialDuration = 10 // Store initial duration for progress calculation
+                    timerService?.startTimer(duration: 10, type: .dry)
                 }
                 
                 testButton(title: "Stop Timer", icon: "stop.fill", color: .red) {
                     print("🧪 Stopping timer")
-                    timerService.stopTimer()
+                    initialDuration = 0 // Reset initial duration
+                    timerService?.stopTimer()
                 }
                 
                 testButton(title: "Check Status", icon: "checkmark.circle", color: .orange) {
@@ -196,6 +204,10 @@ struct TestTimerView: View {
                 
                 testButton(title: "Simulate Background", icon: "rectangle.stack", color: .indigo, fullWidth: true) {
                     simulateBackground()
+                }
+                
+                testButton(title: "🔍 Check UserDefaults", icon: "magnifyingglass", color: .teal, fullWidth: true) {
+                    checkUserDefaults()
                 }
             }
         }
@@ -256,8 +268,9 @@ struct TestTimerView: View {
     // MARK: - Computed Properties
     
     private var formattedTime: String {
-        let minutes = Int(timerService.timeRemaining) / 60
-        let seconds = Int(timerService.timeRemaining) % 60
+        guard let service = timerService else { return "00:00" }
+        let minutes = Int(service.timeRemaining) / 60
+        let seconds = Int(service.timeRemaining) % 60
         return String(format: "%02d:%02d", minutes, seconds)
     }
     
@@ -268,23 +281,35 @@ struct TestTimerView: View {
     }
     
     private var progressPercentage: Double {
-        guard let endTime = timerService.endTime else { return 0 }
+        guard let service = timerService else { return 0 }
         
-        let totalDuration = endTime.timeIntervalSince(Date() - timerService.timeRemaining)
-        guard totalDuration > 0 else { return 0 }
+        // Use initialDuration if available, otherwise return 0
+        guard initialDuration > 0 else { return 0 }
         
-        return timerService.timeRemaining / totalDuration
+        // Calculate progress as remaining time / initial duration
+        // This gives us a value from 1.0 (just started) to 0.0 (completed)
+        let progress = service.timeRemaining / initialDuration
+        
+        // Clamp to 0-1 range
+        return max(0, min(1, progress))
     }
     
     private var progressColor: Color {
+        // If no initial duration, show gray
+        guard initialDuration > 0 else { return .gray }
+        
+        // Calculate percentage remaining
         let percentage = progressPercentage * 100
         
+        // Color based on remaining percentage
         if percentage > 50 {
             return .green
         } else if percentage > 25 {
             return .yellow
-        } else {
+        } else if percentage > 0 {
             return .red
+        } else {
+            return .gray
         }
     }
     
@@ -313,28 +338,95 @@ struct TestTimerView: View {
                 print("✅ Created new test pet: \(newPet.id)")
             }
         }
+    }
+    
+    private func initializeTimerService() {
+        guard let pet = testPet else {
+            print("⚠️ Cannot initialize timer service: no test pet")
+            return
+        }
         
-        // Reinitialize timer service with correct pet ID
-        if let pet = testPet {
-            let newService = PetTimerService(petID: pet.id)
-            // Use mirror to update the StateObject (workaround for initialization)
-            // In production, this would be handled differently
+        // Only initialize once
+        guard timerService == nil else {
+            print("ℹ️ Timer service already initialized")
+            return
+        }
+        
+        print("🔧 Initializing PetTimerService for pet: \(pet.id)")
+        print("   Pet ID: \(pet.id.uuidString)")
+        print("   UserDefaults key: pet_timer_\(pet.id.uuidString)")
+        
+        // Create timer service - this will automatically call restoreTimerState() in init
+        timerService = PetTimerService(petID: pet.id)
+        
+        print("✅ Timer service initialized")
+    }
+    
+    private func checkTimerRestoration() {
+        guard let pet = testPet else { return }
+        
+        print("🔄 Checking for timer restoration...")
+        print("   Pet ID: \(pet.id.uuidString.prefix(8))...")
+        
+        if let service = timerService {
+            if service.isActive {
+                print("✅ Timer successfully restored!")
+                print("   Is Active: \(service.isActive)")
+                print("   Time Remaining: \(service.timeRemaining)s")
+                print("   Timer Type: \(service.timerType.rawValue)")
+                if let endTime = service.endTime {
+                    print("   End Time: \(endTime)")
+                }
+            } else {
+                print("ℹ️ No active timer to restore")
+            }
+        } else {
+            print("⚠️ Timer service not yet initialized")
         }
     }
     
-    private func observeTimerCompletion() {
-        NotificationCenter.default.addObserver(
+    private func setupCompletionObserver() {
+        // Remove any existing observer first
+        if let observer = completionObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        
+        print("👂 Setting up completion notification observer...")
+        
+        // Set up completion notification observer
+        completionObserver = NotificationCenter.default.addObserver(
             forName: .timerCompleted,
             object: nil,
             queue: .main
         ) { notification in
-            guard let completedPetID = notification.object as? UUID,
-                  completedPetID == testPet?.id else {
-                return
-            }
+            print("🎉 COMPLETION NOTIFICATION RECEIVED!")
             
-            print("🎉 Timer completion notification received!")
-            showCompletionAlert = true
+            if let petID = notification.object as? UUID {
+                print("   Pet ID from notification: \(petID)")
+                print("   Current test pet ID: \(self.testPet?.id.uuidString.prefix(8) ?? "none")...")
+                
+                // Check if this notification is for our test pet
+                if petID == self.testPet?.id {
+                    print("   ✅ Notification matches our test pet!")
+                    self.showCompletionAlert = true
+                } else {
+                    print("   ⚠️ Notification is for a different pet")
+                }
+            } else {
+                print("   ⚠️ No pet ID in notification")
+            }
+        }
+        
+        print("✅ Completion observer registered")
+    }
+    
+    private func cleanupObservers() {
+        print("🧹 Cleaning up notification observers...")
+        
+        if let observer = completionObserver {
+            NotificationCenter.default.removeObserver(observer)
+            completionObserver = nil
+            print("✅ Completion observer removed")
         }
     }
     
@@ -345,14 +437,20 @@ struct TestTimerView: View {
     }
     
     private func checkTimerStatus() {
-        let isCompleted = timerService.checkTimerStatus()
+        guard let service = timerService else {
+            statusMessage = "Timer service not initialized"
+            showStatusAlert = true
+            return
+        }
+        
+        let isCompleted = service.checkTimerStatus()
         
         statusMessage = """
         Timer Status Check
         
-        Is Active: \(timerService.isActive)
+        Is Active: \(service.isActive)
         Is Completed: \(isCompleted)
-        Time Remaining: \(String(format: "%.1f", timerService.timeRemaining))s
+        Time Remaining: \(String(format: "%.1f", service.timeRemaining))s
         """
         
         print("📊 Status check - Completed: \(isCompleted)")
@@ -378,6 +476,56 @@ struct TestTimerView: View {
         )
         
         statusMessage = "Background notification posted!\n\nTimer state should be saved.\nCheck console for confirmation."
+        showStatusAlert = true
+    }
+    
+    private func checkUserDefaults() {
+        guard let pet = testPet else {
+            print("⚠️ No test pet available")
+            statusMessage = "No test pet available"
+            showStatusAlert = true
+            return
+        }
+        
+        let key = "pet_timer_\(pet.id.uuidString)"
+        print("🔍 Checking UserDefaults for key:")
+        print("   \(key)")
+        
+        if let data = UserDefaults.standard.data(forKey: key) {
+            print("✅ UserDefaults HAS data for this key")
+            print("   Data size: \(data.count) bytes")
+            
+            do {
+                let state = try JSONDecoder().decode(TimerState.self, from: data)
+                let isPast = Date() >= state.endTime
+                
+                print("   Decoded TimerState:")
+                print("   - Pet ID: \(state.petID)")
+                print("   - End Time: \(state.endTime)")
+                print("   - Timer Type: \(state.timerType.rawValue)")
+                print("   - Is past?: \(isPast)")
+                
+                let timeUntilEnd = state.endTime.timeIntervalSince(Date())
+                print("   - Time until end: \(String(format: "%.1f", timeUntilEnd))s")
+                
+                statusMessage = """
+                UserDefaults Check ✅
+                
+                Data exists for this pet
+                End Time: \(state.endTime)
+                Type: \(state.timerType.displayName)
+                Status: \(isPast ? "COMPLETED" : "ACTIVE")
+                """
+                
+            } catch {
+                print("❌ Failed to decode TimerState: \(error)")
+                statusMessage = "Data exists but couldn't decode:\n\(error.localizedDescription)"
+            }
+        } else {
+            print("❌ UserDefaults has NO data for this key")
+            statusMessage = "No timer data in UserDefaults\n\nKey checked:\npet_timer_\(pet.id.uuidString.prefix(8))..."
+        }
+        
         showStatusAlert = true
     }
 }
