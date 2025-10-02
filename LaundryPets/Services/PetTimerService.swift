@@ -243,7 +243,6 @@ final class PetTimerService: ObservableObject {
             .sink { [weak self] _ in
                 guard let self = self else { return }
                 
-                // CRITICAL: Calculate remaining time from absolute endTime
                 guard let endTime = self.endTime else {
                     print("❌ No endTime available")
                     self.clearTimerState()
@@ -253,18 +252,20 @@ final class PetTimerService: ObservableObject {
                 // Calculate time remaining
                 let remaining = endTime.timeIntervalSinceNow
                 
-                // Update published property (this triggers UI update)
-                self.timeRemaining = max(0, remaining)
+                // CRITICAL FIX: Update on main thread with explicit objectWillChange
+                Task { @MainActor in
+                    self.objectWillChange.send() // Force SwiftUI to notice
+                    self.timeRemaining = max(0, remaining)
+                }
                 
-                // Debug: Print every second (can be commented out in production)
-                #if DEBUG
-                print("⏱️ Timer tick - Remaining: \(String(format: "%.1f", self.timeRemaining))s")
-                #endif
+                print("⏱️ Timer tick - Remaining: \(Int(max(0, remaining)))s")
                 
                 // Check for completion
                 if remaining <= 0 {
                     print("✅ Timer reached zero!")
-                    self.handleTimerCompletion()
+                    Task { @MainActor in
+                        self.handleTimerCompletion()
+                    }
                 }
             }
         
