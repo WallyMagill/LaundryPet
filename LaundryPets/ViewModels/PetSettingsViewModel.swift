@@ -279,7 +279,7 @@ final class PetSettingsViewModel: ObservableObject {
     
     /// Pet's current health percentage
     var currentHealth: Int {
-        return pet.currentHealth
+        return pet.health ?? 100
     }
     
     /// Pet's current state

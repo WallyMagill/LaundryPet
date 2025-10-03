@@ -747,7 +747,7 @@ struct TestModelsView: View {
         print("🐾 Creating test pet #\(count)...")
         
         if let pet = petService.createPet(name: "Test Pet \(count)", cycleFrequencyDays: 7) {
-            petService.updatePetHealth(pet, newHealth: 100)
+            _ = petService.updatePetHealth(pet, newHealth: 100)
             print("✅ Test pet created successfully")
         }
     }
@@ -830,9 +830,9 @@ struct TestModelsView: View {
         if let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) {
             pet.lastLaundryDate = yesterday
             
-            if petService.updatePet(pet) {
+            if petService.savePet(pet) {
                 let health = HealthUpdateService.shared.calculateCurrentHealth(for: pet)
-                petService.updatePetHealth(pet, newHealth: health)
+                _ = petService.updatePetHealth(pet, newHealth: health)
                 step4Result = "Set to 1 day ago → Health: \(health)%"
                 print("✅ Set to yesterday, health: \(health)%")
             }
@@ -863,9 +863,9 @@ struct TestModelsView: View {
         if let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) {
             pet.lastLaundryDate = sevenDaysAgo
             
-            if petService.updatePet(pet) {
+            if petService.savePet(pet) {
                 let health = HealthUpdateService.shared.calculateCurrentHealth(for: pet)
-                petService.updatePetHealth(pet, newHealth: health)
+                _ = petService.updatePetHealth(pet, newHealth: health)
                 step4Result = "Set to 7 days ago → Health: \(health)% (should be 0)"
                 print("✅ Set to 7 days ago, health: \(health)%")
             }
@@ -878,7 +878,7 @@ struct TestModelsView: View {
         let oldHealth = pet.health ?? 0
         let oldState = pet.currentState
         
-        petService.completeCycle(for: pet)
+        _ = petService.completeCycle(for: pet)
         
         step6Result = "Health: \(oldHealth)% → 100%, State: \(oldState.rawValue) → happy"
         print("✅ Cycle completed")

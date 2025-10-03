@@ -355,5 +355,9 @@ extension Notification.Name {
     /// Posted when a timer completes
     /// Object contains the petID (UUID) of the completed timer
     static let timerCompleted = Notification.Name("timerCompleted")
+    
+    /// Posted when a pet's state is updated (cycle started, completed, etc.)
+    /// Object contains the petID (UUID) of the updated pet
+    static let petStateUpdated = Notification.Name("petStateUpdated")
 }
 

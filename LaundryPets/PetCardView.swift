@@ -1,0 +1,309 @@
+//
+//  PetCardView.swift
+//  LaundryPets
+//
+//  Individual pet card component displaying pet state, health, and timer information
+//  Features real-time updates, beautiful styling, and accessibility support
+//
+
+import SwiftUI
+import SwiftData
+
+struct PetCardView: View {
+    // MARK: - Properties
+    
+    let pet: Pet
+    let modelContext: ModelContext
+    let onDelete: (Pet) -> Void
+    
+    @StateObject private var petViewModel: PetViewModel
+    @State private var showingDeleteConfirmation = false
+    
+    // MARK: - Initialization
+    
+    init(pet: Pet, modelContext: ModelContext, onDelete: @escaping (Pet) -> Void) {
+        self.pet = pet
+        self.modelContext = modelContext
+        self.onDelete = onDelete
+        self._petViewModel = StateObject(wrappedValue: PetViewModel(pet: pet, modelContext: modelContext))
+    }
+    
+    // MARK: - Body
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Main card content
+            NavigationLink(destination: PetDetailView(pet: pet, modelContext: modelContext)) {
+                cardContent
+            }
+            .buttonStyle(PlainButtonStyle())
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(pet.name), health \(petViewModel.healthPercentage) percent, \(timerInformationText)")
+            .accessibilityHint("Double tap to view pet details")
+            .accessibilityAddTraits(.isButton)
+            
+            // Delete button
+            Button(action: {
+                showingDeleteConfirmation = true
+            }) {
+                Image(systemName: "trash")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.red)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        Circle()
+                            .fill(Color.red.opacity(0.1))
+                    )
+            }
+            .buttonStyle(PlainButtonStyle())
+            .accessibilityLabel("Delete \(pet.name)")
+            .accessibilityHint("Double tap to delete this pet")
+        }
+        .alert("Delete Pet", isPresented: $showingDeleteConfirmation) {
+            Button("Delete", role: .destructive) {
+                onDelete(pet)
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Are you sure you want to delete \(pet.name)? This action cannot be undone and will also delete all associated laundry tasks.")
+        }
+    }
+    
+    // MARK: - Card Content
+    
+    private var cardContent: some View {
+        HStack(spacing: 16) {
+            petStateIconView
+            petInformationView
+            Spacer()
+            statusIndicatorView
+        }
+        .padding(20)
+        .background(cardBackground)
+    }
+    
+    // MARK: - Card Components
+    
+    private var petStateIconView: some View {
+        VStack {
+            Image(systemName: petStateIcon)
+                .font(.system(size: 28, weight: .medium))
+                .foregroundColor(petStateColor)
+                .frame(width: 50, height: 50)
+                .background(iconBackground)
+        }
+    }
+    
+    private var iconBackground: some View {
+        Circle()
+            .fill(petStateColor.opacity(0.15))
+            .overlay(
+                Circle()
+                    .stroke(petStateColor.opacity(0.3), lineWidth: 2)
+            )
+    }
+    
+    private var petInformationView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Pet Name
+            Text(pet.name)
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundColor(.primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            
+            // Health/Status with better styling
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 8, height: 8)
+                
+                Text(healthOrStatusText)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(statusColor)
+            }
+            
+            // Timer Information
+            Text(timerInformationText)
+                .font(.system(size: 14, weight: .regular))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+        }
+    }
+    
+    private var statusIndicatorView: some View {
+        VStack(spacing: 4) {
+            // Health percentage or timer progress
+            if let task = petViewModel.currentTask, task.currentStage == .washing || task.currentStage == .drying {
+                Text(petViewModel.getFormattedTimeRemaining())
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundColor(petStateColor)
+            } else {
+                Text("\(petViewModel.healthPercentage)%")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundColor(petStateColor)
+            }
+            
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(Color(.systemBackground))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(petStateColor.opacity(0.2), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+    }
+    
+    // MARK: - Computed Properties
+    
+    /// Pet state icon based on current state
+    private var petStateIcon: String {
+        if let task = petViewModel.currentTask, !task.isCompleted {
+            switch task.currentStage {
+            case .washing:
+                return "washer.fill"
+            case .drying:
+                return "fan.fill"
+            case .dryComplete:
+                return "hand.raised.fill"
+            default:
+                return healthBasedIcon
+            }
+        } else {
+            return healthBasedIcon
+        }
+    }
+    
+    /// Icon based on health level
+    private var healthBasedIcon: String {
+        switch petViewModel.petState {
+        case .happy, .neutral:
+            return "face.smiling"
+        case .sad, .verySad:
+            return "face.dashed"
+        case .dead:
+            return "xmark.circle.fill"
+        }
+    }
+    
+    /// Pet state color based on current state
+    private var petStateColor: Color {
+        if let task = petViewModel.currentTask, !task.isCompleted {
+            switch task.currentStage {
+            case .washing:
+                return .blue
+            case .drying:
+                return .orange
+            case .dryComplete:
+                return .purple
+            default:
+                return healthColor
+            }
+        } else {
+            return healthColor
+        }
+    }
+    
+    /// Color based on health level
+    private var healthColor: Color {
+        switch petViewModel.petState {
+        case .happy:
+            return .green
+        case .neutral:
+            return .blue
+        case .sad:
+            return .orange
+        case .verySad:
+            return .red
+        case .dead:
+            return .red
+        }
+    }
+    
+    /// Health or status text based on current state
+    private var healthOrStatusText: String {
+        if let task = petViewModel.currentTask, !task.isCompleted {
+            switch task.currentStage {
+            case .washing:
+                return "Washing"
+            case .drying:
+                return "Drying"
+            case .dryComplete:
+                return "Fold Me"
+            default:
+                return "Health \(petViewModel.healthPercentage)%"
+            }
+        } else {
+            return "Health \(petViewModel.healthPercentage)%"
+        }
+    }
+    
+    /// Status color based on current state
+    private var statusColor: Color {
+        if let task = petViewModel.currentTask, !task.isCompleted {
+            switch task.currentStage {
+            case .washing:
+                return .blue
+            case .drying:
+                return .orange
+            case .dryComplete:
+                return .purple
+            default:
+                return healthColor
+            }
+        } else {
+            return healthColor
+        }
+    }
+    
+    /// Timer information text
+    private var timerInformationText: String {
+        if let task = petViewModel.currentTask, task.currentStage == .washing || task.currentStage == .drying {
+            let remaining = petViewModel.getFormattedTimeRemaining()
+            return "Time left: \(remaining)"
+        } else {
+            let nextWash = calculateTimeUntilNextWash()
+            return "Next wash: \(nextWash)"
+        }
+    }
+    
+    /// Calculates time until next wash is needed
+    private func calculateTimeUntilNextWash() -> String {
+        guard let lastLaundry = pet.lastLaundryDate else {
+            return "Overdue"
+        }
+        
+        let cycleDuration = TimeInterval(pet.cycleFrequencyDays * 24 * 60 * 60)
+        let nextWashDate = lastLaundry.addingTimeInterval(cycleDuration)
+        let timeRemaining = nextWashDate.timeIntervalSinceNow
+        
+        if timeRemaining <= 0 {
+            return "Overdue"
+        } else {
+            let days = Int(timeRemaining / 86400)
+            let hours = Int((timeRemaining.truncatingRemainder(dividingBy: 86400)) / 3600)
+            
+            if days > 0 {
+                return "\(days)d \(hours)h"
+            } else {
+                return "\(hours)h"
+            }
+        }
+    }
+}
+
+// MARK: - Preview
+
+#Preview {
+    let modelContext = ModelContext(try! ModelContainer(for: Pet.self, LaundryTask.self, AppSettings.self))
+    let samplePet = Pet(name: "Fluffy", cycleFrequencyDays: 7)
+    
+    return PetCardView(pet: samplePet, modelContext: modelContext, onDelete: { _ in })
+        .padding()
+}

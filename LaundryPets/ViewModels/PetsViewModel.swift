@@ -9,6 +9,7 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import Combine
 
 /// ViewModel responsible for managing the collection of pets
 /// Provides reactive UI updates and handles all pet-related database operations
@@ -39,6 +40,9 @@ final class PetsViewModel: ObservableObject {
     /// Handles all database interactions with proper error handling
     private let petService: PetService
     
+    /// Combine cancellable for pet state update notifications
+    private var petStateUpdateCancellable: AnyCancellable?
+    
     // MARK: - Initialization
     
     /// Creates a new PetsViewModel with the provided model context
@@ -51,6 +55,24 @@ final class PetsViewModel: ObservableObject {
         
         // Load pets immediately on initialization
         loadPets()
+        
+        // Set up pet state update notifications
+        setupPetStateUpdateObservation()
+    }
+    
+    // MARK: - Private Methods
+    
+    /// Sets up observation of pet state update notifications
+    /// Refreshes the pets list when any pet's state changes
+    private func setupPetStateUpdateObservation() {
+        petStateUpdateCancellable = NotificationCenter.default
+            .publisher(for: .petStateUpdated)
+            .sink { [weak self] _ in
+                print("📢 Received pet state update notification - refreshing pets list")
+                self?.loadPets()
+            }
+        
+        print("✅ Pet state update observation setup for dashboard")
     }
     
     // MARK: - Public Methods
@@ -71,6 +93,7 @@ final class PetsViewModel: ObservableObject {
             self.pets = fetchedPets
             
             print("✅ Loaded \(fetchedPets.count) pets")
+            print("📋 Pet names: \(fetchedPets.map { $0.name })")
             
         } catch {
             // Log error for debugging
@@ -108,7 +131,9 @@ final class PetsViewModel: ObservableObject {
         }
         
         // Pet created successfully, reload the pets list
+        print("🔄 Reloading pets after creation...")
         loadPets()
+        print("📊 Current pets count after reload: \(pets.count)")
         
         // Return the created pet for immediate use
         return newPet

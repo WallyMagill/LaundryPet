@@ -199,7 +199,7 @@ final class SettingsViewModel: ObservableObject {
     
     /// Saves the current settings to the database
     /// Handles save errors with user-friendly error messages
-    private func saveSettings() {
+    func saveSettings() {
         do {
             try modelContext.save()
             print("✅ Settings saved successfully")

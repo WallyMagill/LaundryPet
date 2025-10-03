@@ -9,9 +9,10 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
+    @Environment(\.modelContext) private var modelContext
+    
     var body: some View {
-        // Phase 2 Testing - Will be replaced with real UI in Phase 3
-        TestViewModelsView()
+        PetDashboardView(modelContext: modelContext)
     }
 }
 

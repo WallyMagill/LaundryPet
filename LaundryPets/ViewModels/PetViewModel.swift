@@ -151,6 +151,16 @@ final class PetViewModel: ObservableObject {
         print("✅ Health update observation setup for pet: \(pet.name)")
     }
     
+    /// Notifies other components that this pet's state has been updated
+    /// Posts a notification with the pet's ID for dashboard refresh
+    private func notifyPetStateUpdated() {
+        NotificationCenter.default.post(
+            name: .petStateUpdated,
+            object: pet.id
+        )
+        print("📢 Posted pet state update notification for: \(pet.name)")
+    }
+    
     /// Sets up observation of timer completion notifications
     /// Handles automatic stage transitions when timers complete
     private func setupTimerCompletionObservation() {
@@ -270,6 +280,9 @@ final class PetViewModel: ObservableObject {
             // Start the wash phase
             startWash()
             
+            // Notify dashboard of state change
+            notifyPetStateUpdated()
+            
         } catch {
             print("❌ Failed to start cycle: \(error)")
             self.errorMessage = "Unable to start laundry cycle. Please try again."
@@ -300,6 +313,9 @@ final class PetViewModel: ObservableObject {
             timerService.startTimer(duration: washDuration, type: .wash)
             
             print("✅ Started wash for \(pet.name): \(pet.washDurationMinutes) minutes")
+            
+            // Notify dashboard of state change
+            notifyPetStateUpdated()
             
         } catch {
             print("❌ Failed to start wash: \(error)")
@@ -332,6 +348,9 @@ final class PetViewModel: ObservableObject {
             timerService.startTimer(duration: dryDuration, type: .dry)
             
             print("✅ Started dry for \(pet.name): \(pet.dryDurationMinutes) minutes")
+            
+            // Notify dashboard of state change
+            notifyPetStateUpdated()
             
         } catch {
             print("❌ Failed to start dry: \(error)")
@@ -374,6 +393,9 @@ final class PetViewModel: ObservableObject {
             updateHealthDisplay()
             
             print("✅ Completed cycle for \(pet.name) - Stats: \(pet.totalCyclesCompleted) cycles, \(pet.currentStreak) streak")
+            
+            // Notify dashboard of state change
+            notifyPetStateUpdated()
             
         } catch {
             print("❌ Failed to complete cycle: \(error)")
@@ -455,7 +477,7 @@ final class PetViewModel: ObservableObject {
     /// - Returns: true if refresh succeeded, false if failed
     @discardableResult
     func refreshPetData() -> Bool {
-        guard let refreshedPet = petService.fetchPet(by: pet.id) else {
+        guard petService.fetchPet(by: pet.id) != nil else {
             print("❌ Failed to refresh pet data for \(pet.name)")
             self.errorMessage = "Unable to refresh pet data. Please restart the app."
             self.showError = true
@@ -479,6 +501,8 @@ final class PetViewModel: ObservableObject {
         
         if success {
             print("✅ Updated pet name to: \(newName)")
+            // Notify dashboard of state change
+            notifyPetStateUpdated()
         } else {
             self.errorMessage = "Unable to update pet name. Please try again."
             self.showError = true
