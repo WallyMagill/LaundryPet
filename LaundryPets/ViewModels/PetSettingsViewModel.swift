@@ -49,11 +49,17 @@ final class PetSettingsViewModel: ObservableObject {
     /// Set to true when errorMessage is set, triggers alert presentation
     @Published var showError: Bool = false
     
-    /// Controls whether save confirmation dialog is shown
-    @Published var showSaveConfirmation: Bool = false
-    
     /// Controls whether reset statistics confirmation dialog is shown
     @Published var showResetConfirmation: Bool = false
+    
+    /// Controls whether delete pet confirmation dialog is shown
+    @Published var showDeleteConfirmation: Bool = false
+    
+    /// Controls whether edit name dialog is shown
+    @Published var showEditName: Bool = false
+    
+    /// New pet name for editing
+    @Published var newPetName: String = ""
     
     // MARK: - Private Properties
     
@@ -94,11 +100,10 @@ final class PetSettingsViewModel: ObservableObject {
         self.cycleFrequencyDays = pet.cycleFrequencyDays
         self.washDurationMinutes = pet.washDurationMinutes
         self.dryDurationMinutes = pet.dryDurationMinutes
+        self.newPetName = pet.name
         
         // Setup change detection
         setupChangeDetection()
-        
-        print("✅ PetSettingsViewModel initialized for: \(pet.name)")
     }
     
     // MARK: - Setup Methods
@@ -121,72 +126,88 @@ final class PetSettingsViewModel: ObservableObject {
         let dryDurationChanged = dryDurationMinutes != originalDryDuration
         
         hasUnsavedChanges = nameChanged || frequencyChanged || washDurationChanged || dryDurationChanged
-        
-        if hasUnsavedChanges {
-            print("📝 Unsaved changes detected for \(pet.name)")
-        }
     }
     
     // MARK: - Public Methods
     
-    /// Saves all current settings to the database
-    /// - Returns: true if save succeeded, false if failed
+    /// Updates the cycle frequency setting
+    /// - Parameter newValue: The new cycle frequency in days
+    func updateCycleFrequency(_ newValue: Int) {
+        do {
+            pet.cycleFrequencyDays = newValue
+            try modelContext.save()
+            self.cycleFrequencyDays = newValue
+        } catch {
+            #if DEBUG
+            print("❌ Failed to update cycle frequency: \(error)")
+            #endif
+            errorMessage = "Failed to update cycle frequency. Please try again."
+            showError = true
+            // Revert the picker selection
+            self.cycleFrequencyDays = pet.cycleFrequencyDays
+        }
+    }
+    
+    /// Updates the wash duration setting
+    /// - Parameter newValue: The new wash duration in minutes
+    func updateWashDuration(_ newValue: Int) {
+        do {
+            pet.washDurationMinutes = newValue
+            try modelContext.save()
+            self.washDurationMinutes = newValue
+        } catch {
+            #if DEBUG
+            print("❌ Failed to update wash duration: \(error)")
+            #endif
+            errorMessage = "Failed to update wash duration. Please try again."
+            showError = true
+            // Revert the picker selection
+            self.washDurationMinutes = pet.washDurationMinutes
+        }
+    }
+    
+    /// Updates the dry duration setting
+    /// - Parameter newValue: The new dry duration in minutes
+    func updateDryDuration(_ newValue: Int) {
+        do {
+            pet.dryDurationMinutes = newValue
+            try modelContext.save()
+            self.dryDurationMinutes = newValue
+        } catch {
+            #if DEBUG
+            print("❌ Failed to update dry duration: \(error)")
+            #endif
+            errorMessage = "Failed to update dry duration. Please try again."
+            showError = true
+            // Revert the picker selection
+            self.dryDurationMinutes = pet.dryDurationMinutes
+        }
+    }
+    
+    /// Updates the pet's name
+    /// - Parameter newName: The new name for the pet
+    /// - Returns: true if update succeeded, false if failed
     @discardableResult
-    func saveSettings() -> Bool {
-        // Validate inputs first
-        guard validateInputs() else {
+    func updatePetName(_ newName: String) -> Bool {
+        let trimmedName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty, trimmedName.count >= 1, trimmedName.count <= 50 else {
+            errorMessage = "Pet name must be between 1 and 50 characters."
+            showError = true
             return false
         }
         
-        var saveSuccess = true
+        let success = petService.updatePetName(pet, newName: trimmedName)
         
-        // Update pet name if changed
-        if petName != originalName {
-            let nameSuccess = petService.updatePetName(pet, newName: petName)
-            if !nameSuccess {
-                saveSuccess = false
-            }
-        }
-        
-        // Update timer settings if changed
-        let settingsChanged = cycleFrequencyDays != originalCycleFrequency ||
-                            washDurationMinutes != originalWashDuration ||
-                            dryDurationMinutes != originalDryDuration
-        
-        if settingsChanged {
-            let settingsSuccess = petService.updatePetSettings(
-                pet,
-                cycleFrequencyDays: cycleFrequencyDays,
-                washDurationMinutes: washDurationMinutes,
-                dryDurationMinutes: dryDurationMinutes
-            )
-            if !settingsSuccess {
-                saveSuccess = false
-            }
-        }
-        
-        if saveSuccess {
-            // Clear unsaved changes state
-            hasUnsavedChanges = false
-            print("✅ Settings saved successfully for \(pet.name)")
+        if success {
+            self.petName = trimmedName
+            self.newPetName = trimmedName
+            showEditName = false
         } else {
-            errorMessage = "Unable to save some settings. Please try again."
+            errorMessage = "Unable to update pet name. Please try again."
             showError = true
         }
         
-        return saveSuccess
-    }
-    
-    /// Resets all settings to their original values
-    /// Cancels any unsaved changes
-    func resetToOriginal() {
-        petName = originalName
-        cycleFrequencyDays = originalCycleFrequency
-        washDurationMinutes = originalWashDuration
-        dryDurationMinutes = originalDryDuration
-        hasUnsavedChanges = false
-        
-        print("🔄 Settings reset to original values for \(pet.name)")
+        return success
     }
     
     /// Resets the pet's statistics to zero
@@ -199,17 +220,30 @@ final class PetSettingsViewModel: ObservableObject {
     /// - Returns: true if reset succeeded, false if failed
     @discardableResult
     func confirmResetStatistics() -> Bool {
-        let success = petService.resetPetStatistics(pet)
-        
-        if success {
-            print("✅ Statistics reset for \(pet.name)")
-        } else {
-            errorMessage = "Unable to reset statistics. Please try again."
+        do {
+            pet.totalCyclesCompleted = 0
+            pet.currentStreak = 0
+            pet.longestStreak = 0
+            pet.lastLaundryDate = nil
+            
+            // Reset health to default
+            pet.health = 100
+            pet.currentState = .happy
+            
+            try modelContext.save()
+            
+            showResetConfirmation = false
+            return true
+            
+        } catch {
+            #if DEBUG
+            print("❌ Failed to reset statistics: \(error)")
+            #endif
+            errorMessage = "Failed to reset statistics. Please try again."
             showError = true
+            showResetConfirmation = false
+            return false
         }
-        
-        showResetConfirmation = false
-        return success
     }
     
     /// Cancels statistics reset
@@ -217,62 +251,36 @@ final class PetSettingsViewModel: ObservableObject {
         showResetConfirmation = false
     }
     
-    /// Shows save confirmation dialog
-    func requestSaveConfirmation() {
-        showSaveConfirmation = true
+    /// Shows delete confirmation dialog
+    func requestDeleteConfirmation() {
+        showDeleteConfirmation = true
     }
     
-    /// Confirms and executes save
-    func confirmSave() {
-        let success = saveSettings()
-        showSaveConfirmation = false
-        
-        if success {
-            // Could trigger a success notification here
-            print("✅ Settings saved and confirmed for \(pet.name)")
-        }
-    }
-    
-    /// Cancels save operation
-    func cancelSave() {
-        showSaveConfirmation = false
-    }
-    
-    // MARK: - Validation Methods
-    
-    /// Validates all input values
-    /// - Returns: true if all inputs are valid, false otherwise
-    private func validateInputs() -> Bool {
-        // Validate pet name
-        let trimmedName = petName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty, trimmedName.count >= 1, trimmedName.count <= 50 else {
-            errorMessage = "Pet name must be between 1 and 50 characters."
-            showError = true
-            return false
-        }
-        
-        // Validate cycle frequency
-        guard cycleFrequencyDays >= 1, cycleFrequencyDays <= 365 else {
-            errorMessage = "Cycle frequency must be between 1 and 365 days."
-            showError = true
-            return false
-        }
-        
-        // Validate wash duration
-        guard washDurationMinutes >= 1, washDurationMinutes <= 180 else {
-            errorMessage = "Wash duration must be between 1 and 180 minutes."
-            showError = true
-            return false
-        }
-        
-        // Validate dry duration
-        guard dryDurationMinutes >= 1, dryDurationMinutes <= 180 else {
-            errorMessage = "Dry duration must be between 1 and 180 minutes."
-            showError = true
-            return false
-        }
-        
+    /// Confirms and executes pet deletion
+    /// - Parameter petsViewModel: The PetsViewModel to use for deletion
+    /// - Returns: true if deletion succeeded, false if failed
+    @discardableResult
+    func confirmDeletePet(using petsViewModel: PetsViewModel) -> Bool {
+        petsViewModel.deletePet(pet)
+        showDeleteConfirmation = false
         return true
+    }
+    
+    /// Cancels pet deletion
+    func cancelDeletePet() {
+        showDeleteConfirmation = false
+    }
+    
+    /// Shows edit name dialog
+    func showEditNameDialog() {
+        newPetName = pet.name
+        showEditName = true
+    }
+    
+    /// Cancels edit name
+    func cancelEditName() {
+        newPetName = pet.name
+        showEditName = false
     }
     
     // MARK: - Computed Properties
@@ -302,11 +310,20 @@ final class PetSettingsViewModel: ObservableObject {
         return pet.longestStreak
     }
     
-    /// Whether the pet has an active laundry task
-    var hasActiveTask: Bool {
-        // This would need to be checked via PetViewModel or service
-        // For now, return false as a placeholder
-        return false
+    /// Health color based on pet state
+    var healthColor: Color {
+        switch pet.currentState {
+        case .happy:
+            return .green
+        case .neutral:
+            return .blue
+        case .sad:
+            return .orange
+        case .verySad:
+            return .red
+        case .dead:
+            return .red
+        }
     }
     
     // MARK: - Error Handling

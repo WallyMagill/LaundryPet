@@ -138,6 +138,8 @@ struct PetCardView: View {
             switch task.currentStage {
             case .washing:
                 return "washer.fill"
+            case .washComplete:
+                return "arrow.right.circle.fill"
             case .drying:
                 return "fan.fill"
             case .dryComplete:
@@ -168,6 +170,8 @@ struct PetCardView: View {
             switch task.currentStage {
             case .washing:
                 return .blue
+            case .washComplete:
+                return .green
             case .drying:
                 return .orange
             case .dryComplete:
@@ -202,6 +206,8 @@ struct PetCardView: View {
             switch task.currentStage {
             case .washing:
                 return "Washing"
+            case .washComplete:
+                return "Move to Dryer"
             case .drying:
                 return "Drying"
             case .dryComplete:
@@ -220,6 +226,8 @@ struct PetCardView: View {
             switch task.currentStage {
             case .washing:
                 return .blue
+            case .washComplete:
+                return .green
             case .drying:
                 return .orange
             case .dryComplete:

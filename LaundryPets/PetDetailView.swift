@@ -16,6 +16,7 @@ struct PetDetailView: View {
     @ObservedObject var petViewModel: PetViewModel
     let petsViewModel: PetsViewModel
     @State private var showingSettings = false
+    @State private var selectedExtraDryTime: Int = 10
     
     // Cached computed values to prevent recalculation during scrolling
     @State private var cachedDaysSinceCreated: Int = 0
@@ -257,22 +258,37 @@ struct PetDetailView: View {
                 .disabled(!primaryActionEnabled)
                 .opacity(primaryActionEnabled ? 1.0 : 0.6)
                 
-                // Secondary Action Button (for dryComplete stage)
+                // Extra Dry Time Picker (for dryComplete stage)
                 if task.currentStage == .dryComplete {
-                    Button(action: {
-                        _ = petViewModel.addMoreDryTime(additionalMinutes: 10)
-                    }) {
-                        Text("Dry 10 More Minutes")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.orange)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(Color.orange.opacity(0.1))
-                            .cornerRadius(12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-                            )
+                    VStack(spacing: 8) {
+                        Button(action: {
+                            _ = petViewModel.addMoreDryTime(additionalMinutes: selectedExtraDryTime)
+                        }) {
+                            Text("Dry More")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.orange)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 44)
+                                .background(Color.orange.opacity(0.1))
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                                )
+                        }
+                        
+                        HStack {
+                            Text("Extra Dry Time")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Picker("", selection: $selectedExtraDryTime) {
+                                ForEach(Array(stride(from: 5, through: 60, by: 5)), id: \.self) { minutes in
+                                    Text("\(minutes) min").tag(minutes)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        }
                     }
                 }
                 
@@ -613,368 +629,6 @@ struct StatCard: View {
 }
 
 
-// MARK: - PetSettingsView
-
-struct PetSettingsView: View {
-    let pet: Pet
-    let modelContext: ModelContext
-    @Environment(\.dismiss) private var dismiss
-    
-    @ObservedObject var petViewModel: PetViewModel
-    let petsViewModel: PetsViewModel
-    @State private var cycleFrequency: Int
-    @State private var washDuration: Int
-    @State private var dryDuration: Int
-    @State private var showingResetConfirmation = false
-    @State private var showingDeleteConfirmation = false
-    @State private var showingError = false
-    @State private var errorMessage = ""
-    @State private var showingEditName = false
-    @State private var newPetName = ""
-    
-    init(pet: Pet, modelContext: ModelContext, petViewModel: PetViewModel, petsViewModel: PetsViewModel) {
-        self.pet = pet
-        self.modelContext = modelContext
-        self.petViewModel = petViewModel
-        self.petsViewModel = petsViewModel
-        self._cycleFrequency = State(initialValue: pet.cycleFrequencyDays)
-        self._washDuration = State(initialValue: pet.washDurationMinutes)
-        self._dryDuration = State(initialValue: pet.dryDurationMinutes)
-        self._newPetName = State(initialValue: pet.name)
-    }
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                // MARK: - Pet Information Section
-                Section(header: Text("Pet Information")) {
-                    HStack {
-                        Image(systemName: "pawprint.fill")
-                            .foregroundColor(.blue)
-                        Text("Name")
-                        Spacer()
-                        Button(action: {
-                            showingEditName = true
-                        }) {
-                            HStack(spacing: 4) {
-                                Text(pet.name)
-                                    .foregroundColor(.primary)
-                                Image(systemName: "pencil")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.blue)
-                            }
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                    
-                    HStack {
-                        Image(systemName: "calendar")
-                            .foregroundColor(.blue)
-                        Text("Created")
-                        Spacer()
-                        Text(pet.createdDate, style: .date)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                // MARK: - Laundry Schedule Section
-                Section(
-                    header: Text("Laundry Schedule"),
-                    footer: Text("How often this pet needs laundry. Shorter cycles mean more frequent care.")
-                ) {
-                    HStack {
-                        Image(systemName: "repeat")
-                            .foregroundColor(.orange)
-                        Text("Cycle Frequency")
-                        Spacer()
-                        Picker("Cycle Frequency", selection: $cycleFrequency) {
-                            ForEach(1...30, id: \.self) { days in
-                                Text("\(days) day\(days == 1 ? "" : "s")").tag(days)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .onChange(of: cycleFrequency) { _, newValue in
-                            saveCycleFrequency(newValue)
-                        }
-                    }
-                }
-                
-                // MARK: - Timer Settings Section
-                Section(
-                    header: Text("Timer Settings"),
-                    footer: Text("Customize how long each stage takes. These settings affect new laundry cycles.")
-                ) {
-                    // Wash Duration
-                    HStack {
-                        Image(systemName: "washer")
-                            .foregroundColor(.blue)
-                        Text("Wash Duration")
-                        Spacer()
-                        Picker("Wash Duration", selection: $washDuration) {
-                            ForEach(Array(stride(from: 5, through: 120, by: 5)), id: \.self) { minutes in
-                                Text("\(minutes) min").tag(minutes)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .onChange(of: washDuration) { _, newValue in
-                            saveWashDuration(newValue)
-                        }
-                    }
-                    
-                    // Dry Duration
-                    HStack {
-                        Image(systemName: "fan")
-                            .foregroundColor(.orange)
-                        Text("Dry Duration")
-                        Spacer()
-                        Picker("Dry Duration", selection: $dryDuration) {
-                            ForEach(Array(stride(from: 10, through: 180, by: 10)), id: \.self) { minutes in
-                                Text("\(minutes) min").tag(minutes)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .onChange(of: dryDuration) { _, newValue in
-                            saveDryDuration(newValue)
-                        }
-                    }
-                }
-                
-                // MARK: - Statistics Section
-                Section(header: Text("Statistics")) {
-                    HStack {
-                        Image(systemName: "repeat.circle")
-                            .foregroundColor(.blue)
-                        Text("Total Cycles")
-                        Spacer()
-                        Text("\(pet.totalCyclesCompleted)")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Image(systemName: "flame")
-                            .foregroundColor(.orange)
-                        Text("Current Streak")
-                        Spacer()
-                        Text("\(pet.currentStreak)")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Image(systemName: "trophy")
-                            .foregroundColor(.yellow)
-                        Text("Best Streak")
-                        Spacer()
-                        Text("\(pet.longestStreak)")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Image(systemName: "heart")
-                            .foregroundColor(.red)
-                        Text("Current Health")
-                        Spacer()
-                        Text("\(petViewModel.healthPercentage)%")
-                            .foregroundColor(healthColor)
-                    }
-                }
-                
-                // MARK: - Current Task Section
-                if let task = petViewModel.currentTask, !task.isCompleted {
-                    Section(header: Text("Current Task")) {
-                        HStack {
-                            Image(systemName: "washer.fill")
-                                .foregroundColor(.blue)
-                            Text("Status")
-                            Spacer()
-                            Text(task.currentStage.displayText)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        if petViewModel.timerActive {
-                            HStack {
-                                Image(systemName: "timer")
-                                    .foregroundColor(.blue)
-                                Text("Time Remaining")
-                                Spacer()
-                                Text(petViewModel.getFormattedTimeRemaining())
-                                    .foregroundColor(.secondary)
-                                    .monospacedDigit()
-                            }
-                        }
-                        
-                        HStack {
-                            Image(systemName: "calendar")
-                                .foregroundColor(.blue)
-                            Text("Started")
-                            Spacer()
-                            Text(task.startDate, style: .date)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                
-                // MARK: - Danger Zone Section
-                Section(
-                    header: Text("Danger Zone"),
-                    footer: Text("These actions cannot be undone. Proceed with caution.")
-                ) {
-                    Button("Reset All Statistics") {
-                        showingResetConfirmation = true
-                    }
-                    .foregroundColor(.orange)
-                    
-                    Button("Delete Pet") {
-                        showingDeleteConfirmation = true
-                    }
-                    .foregroundColor(.red)
-                }
-            }
-            .navigationTitle("Pet Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-        .alert("Reset Statistics", isPresented: $showingResetConfirmation) {
-            Button("Reset", role: .destructive) {
-                resetStatistics()
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("This will reset all statistics for \(pet.name) including total cycles, streaks, and health. This action cannot be undone.")
-        }
-        .alert("Delete Pet", isPresented: $showingDeleteConfirmation) {
-            Button("Delete", role: .destructive) {
-                deletePet()
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Are you sure you want to delete \(pet.name)? This action cannot be undone and will also delete all associated laundry tasks.")
-        }
-        .alert("Edit Pet Name", isPresented: $showingEditName) {
-            TextField("Pet Name", text: $newPetName)
-            Button("Save") {
-                if !newPetName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    let success = petViewModel.updatePetName(newPetName.trimmingCharacters(in: .whitespacesAndNewlines))
-                    if success {
-                        // Name updated successfully, notification will be posted automatically
-                    }
-                }
-            }
-            Button("Cancel", role: .cancel) {
-                newPetName = pet.name
-            }
-        } message: {
-            Text("Enter a new name for \(pet.name)")
-        }
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") { }
-        } message: {
-            Text(errorMessage)
-        }
-    }
-    
-    // MARK: - Computed Properties
-    
-    private var healthColor: Color {
-        switch petViewModel.petState {
-        case .happy:
-            return .green
-        case .neutral:
-            return .blue
-        case .sad:
-            return .orange
-        case .verySad:
-            return .red
-        case .dead:
-            return .red
-        }
-    }
-    
-    // MARK: - Actions
-    
-    private func saveCycleFrequency(_ newValue: Int) {
-        do {
-            pet.cycleFrequencyDays = newValue
-            try modelContext.save()
-        } catch {
-            #if DEBUG
-            print("❌ Failed to update cycle frequency: \(error)")
-            #endif
-            errorMessage = "Failed to update cycle frequency. Please try again."
-            showingError = true
-            // Revert the picker selection
-            cycleFrequency = pet.cycleFrequencyDays
-        }
-    }
-    
-    private func saveWashDuration(_ newValue: Int) {
-        do {
-            pet.washDurationMinutes = newValue
-            try modelContext.save()
-        } catch {
-            #if DEBUG
-            print("❌ Failed to update wash duration: \(error)")
-            #endif
-            errorMessage = "Failed to update wash duration. Please try again."
-            showingError = true
-            // Revert the picker selection
-            washDuration = pet.washDurationMinutes
-        }
-    }
-    
-    private func saveDryDuration(_ newValue: Int) {
-        do {
-            pet.dryDurationMinutes = newValue
-            try modelContext.save()
-        } catch {
-            #if DEBUG
-            print("❌ Failed to update dry duration: \(error)")
-            #endif
-            errorMessage = "Failed to update dry duration. Please try again."
-            showingError = true
-            // Revert the picker selection
-            dryDuration = pet.dryDurationMinutes
-        }
-    }
-    
-    private func resetStatistics() {
-        do {
-            pet.totalCyclesCompleted = 0
-            pet.currentStreak = 0
-            pet.longestStreak = 0
-            pet.lastLaundryDate = nil
-            
-            // Reset health to default
-            pet.health = 100
-            pet.currentState = .happy
-            
-            try modelContext.save()
-            
-            // Refresh the pet view model
-            petViewModel.refreshPetData()
-            
-        } catch {
-            #if DEBUG
-            print("❌ Failed to reset statistics: \(error)")
-            #endif
-            errorMessage = "Failed to reset statistics. Please try again."
-            showingError = true
-        }
-    }
-    
-    private func deletePet() {
-        // Use PetsViewModel to delete the pet (this will update the dashboard)
-        petsViewModel.deletePet(pet)
-        
-        // Navigate back to dashboard after successful deletion
-        dismiss()
-    }
-}
 
 // MARK: - Preview
 
