@@ -21,6 +21,7 @@ struct PetDetailView: View {
     @State private var cachedPetStateIcon: String = "face.smiling"
     @State private var cachedPetStateColor: Color = .green
     @State private var cachedPetStateText: String = ""
+    @State private var cachedHealthColor: Color = .green
     
     init(pet: Pet, modelContext: ModelContext, petViewModel: PetViewModel) {
         self.pet = pet
@@ -34,11 +35,13 @@ struct PetDetailView: View {
         cachedPetStateIcon = calculatePetStateIcon()
         cachedPetStateColor = calculatePetStateColor()
         cachedPetStateText = calculatePetStateText()
+        cachedHealthColor = calculateHealthColor()
     }
     
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 24) {
+            // CRITICAL FIX: Replace LazyVStack with VStack to eliminate layout overhead
+            VStack(spacing: 24) {
                 // MARK: - Pet Status Section
                 petStatusSection
                 
@@ -112,7 +115,7 @@ struct PetDetailView: View {
                         )
                 )
                 .shadow(color: cachedPetStateColor.opacity(0.2), radius: 10, x: 0, y: 5)
-                .drawingGroup() // Rasterize for better performance
+                // REMOVED: .drawingGroup() - causes excessive memory allocation
             
             // Pet State Text
             Text(cachedPetStateText)
@@ -140,17 +143,17 @@ struct PetDetailView: View {
                 Spacer()
                 Text("\(petViewModel.healthPercentage)%")
                     .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundColor(calculateHealthColor())
+                    .foregroundColor(cachedHealthColor)
             }
             
-            // Health Bar - Optimized for performance (no GeometryReader)
+            // Health Bar - Simplified for performance
             HStack(spacing: 0) {
                 Rectangle()
-                    .fill(calculateHealthColor())
+                    .fill(cachedHealthColor)
                     .frame(height: 12)
                     .frame(maxWidth: .infinity)
                     .scaleEffect(x: CGFloat(petViewModel.healthPercentage) / 100, y: 1, anchor: .leading)
-                    .animation(.easeInOut(duration: 0.5), value: petViewModel.healthPercentage)
+                    // REMOVED: .animation() - causes excessive redraws during scrolling
                 
                 Rectangle()
                     .fill(Color.gray.opacity(0.2))
@@ -159,7 +162,7 @@ struct PetDetailView: View {
                     .scaleEffect(x: CGFloat(100 - petViewModel.healthPercentage) / 100, y: 1, anchor: .trailing)
             }
             .clipShape(RoundedRectangle(cornerRadius: 6))
-            .drawingGroup() // Rasterize for better performance
+            // REMOVED: .drawingGroup() - causes excessive memory allocation
             
             // Health Info
             VStack(spacing: 8) {
@@ -216,13 +219,14 @@ struct PetDetailView: View {
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                 
-                // Timer Display - Isolated for performance
-                TimerDisplayView(
-                    timeRemaining: petViewModel.timeRemaining,
-                    isActive: petViewModel.timerActive
-                )
-                .equatable()
-                .id("timer-\(pet.id)")
+                // Timer Display - Simplified for performance
+                if petViewModel.timerActive {
+                    Text(formatTime(petViewModel.timeRemaining))
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .foregroundColor(.blue)
+                        .monospacedDigit()
+                        // REMOVED: .equatable() and .id() - causes excessive view recreation
+                }
             }
             .padding(.vertical, 12)
             
@@ -322,37 +326,39 @@ struct PetDetailView: View {
                     .foregroundColor(.blue)
             }
             
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 16) {
-                StatCard(
-                    title: "Total Cycles",
-                    value: "\(pet.totalCyclesCompleted)",
-                    icon: "repeat.circle.fill",
-                    color: .blue
-                )
+            // CRITICAL FIX: Replace LazyVGrid with VStack for better performance
+            VStack(spacing: 16) {
+                HStack(spacing: 16) {
+                    StatCard(
+                        title: "Total Cycles",
+                        value: "\(pet.totalCyclesCompleted)",
+                        icon: "repeat.circle.fill",
+                        color: .blue
+                    )
+                    
+                    StatCard(
+                        title: "Current Streak",
+                        value: "\(pet.currentStreak)",
+                        icon: "flame.fill",
+                        color: .orange
+                    )
+                }
                 
-                StatCard(
-                    title: "Current Streak",
-                    value: "\(pet.currentStreak)",
-                    icon: "flame.fill",
-                    color: .orange
-                )
-                
-                StatCard(
-                    title: "Best Streak",
-                    value: "\(pet.longestStreak)",
-                    icon: "trophy.fill",
-                    color: .yellow
-                )
-                
-                StatCard(
-                    title: "Days Since Created",
-                    value: "\(cachedDaysSinceCreated)",
-                    icon: "calendar.circle.fill",
-                    color: .green
-                )
+                HStack(spacing: 16) {
+                    StatCard(
+                        title: "Best Streak",
+                        value: "\(pet.longestStreak)",
+                        icon: "trophy.fill",
+                        color: .yellow
+                    )
+                    
+                    StatCard(
+                        title: "Days Since Created",
+                        value: "\(cachedDaysSinceCreated)",
+                        icon: "calendar.circle.fill",
+                        color: .green
+                    )
+                }
             }
         }
         .padding(20)
@@ -363,6 +369,21 @@ struct PetDetailView: View {
         )
     }
     
+    
+    // MARK: - Helper Methods
+    
+    private func formatTime(_ timeInterval: TimeInterval) -> String {
+        let totalSeconds = Int(timeInterval)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            return String(format: "%d:%02d", minutes, seconds)
+        }
+    }
     
     // MARK: - Computed Properties
     
