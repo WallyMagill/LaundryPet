@@ -14,59 +14,31 @@ struct PetCardView: View {
     
     let pet: Pet
     let modelContext: ModelContext
-    let onDelete: (Pet) -> Void
-    
-    @StateObject private var petViewModel: PetViewModel
-    @State private var showingDeleteConfirmation = false
+    @ObservedObject var petViewModel: PetViewModel
     
     // MARK: - Initialization
     
-    init(pet: Pet, modelContext: ModelContext, onDelete: @escaping (Pet) -> Void) {
+    init(pet: Pet, modelContext: ModelContext, petViewModel: PetViewModel) {
         self.pet = pet
         self.modelContext = modelContext
-        self.onDelete = onDelete
-        self._petViewModel = StateObject(wrappedValue: PetViewModel(pet: pet, modelContext: modelContext))
+        self.petViewModel = petViewModel
     }
     
     // MARK: - Body
     
     var body: some View {
-        HStack(spacing: 12) {
-            // Main card content
-            NavigationLink(destination: PetDetailView(pet: pet, modelContext: modelContext)) {
-                cardContent
-            }
-            .buttonStyle(PlainButtonStyle())
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(pet.name), health \(petViewModel.healthPercentage) percent, \(timerInformationText)")
-            .accessibilityHint("Double tap to view pet details")
-            .accessibilityAddTraits(.isButton)
-            
-            // Delete button
-            Button(action: {
-                showingDeleteConfirmation = true
-            }) {
-                Image(systemName: "trash")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.red)
-                    .frame(width: 32, height: 32)
-                    .background(
-                        Circle()
-                            .fill(Color.red.opacity(0.1))
-                    )
-            }
-            .buttonStyle(PlainButtonStyle())
-            .accessibilityLabel("Delete \(pet.name)")
-            .accessibilityHint("Double tap to delete this pet")
+        NavigationLink(destination: PetDetailView(pet: pet, modelContext: modelContext, petViewModel: petViewModel)) {
+            cardContent
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(cardBackground)
         }
-        .alert("Delete Pet", isPresented: $showingDeleteConfirmation) {
-            Button("Delete", role: .destructive) {
-                onDelete(pet)
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Are you sure you want to delete \(pet.name)? This action cannot be undone and will also delete all associated laundry tasks.")
-        }
+        .contentShape(Rectangle())
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(pet.name), health \(petViewModel.healthPercentage) percent")
+        .accessibilityHint("Double tap to view pet details")
+        .accessibilityAddTraits(.isButton)
     }
     
     // MARK: - Card Content
@@ -79,7 +51,6 @@ struct PetCardView: View {
             statusIndicatorView
         }
         .padding(20)
-        .background(cardBackground)
     }
     
     // MARK: - Card Components
@@ -123,21 +94,18 @@ struct PetCardView: View {
                     .foregroundColor(statusColor)
             }
             
-            // Timer Information
-            Text(timerInformationText)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundColor(.secondary)
-                .lineLimit(1)
+            // Timer Information - Removed "Time left" text
         }
     }
     
     private var statusIndicatorView: some View {
         VStack(spacing: 4) {
             // Health percentage or timer progress
-            if let task = petViewModel.currentTask, task.currentStage == .washing || task.currentStage == .drying {
-                Text(petViewModel.getFormattedTimeRemaining())
+            if petViewModel.timerActive {
+                Text(formatTime(petViewModel.timeRemaining))
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundColor(petStateColor)
+                    .monospacedDigit()
             } else {
                 Text("\(petViewModel.healthPercentage)%")
                     .font(.system(size: 16, weight: .bold, design: .rounded))
@@ -262,15 +230,14 @@ struct PetCardView: View {
         }
     }
     
-    /// Timer information text
-    private var timerInformationText: String {
-        if let task = petViewModel.currentTask, task.currentStage == .washing || task.currentStage == .drying {
-            let remaining = petViewModel.getFormattedTimeRemaining()
-            return "Time left: \(remaining)"
-        } else {
-            let nextWash = calculateTimeUntilNextWash()
-            return "Next wash: \(nextWash)"
-        }
+    // Timer information text removed - timer now only displays on the right side
+    
+    /// Formats time remaining for display
+    private func formatTime(_ timeInterval: TimeInterval) -> String {
+        let totalSeconds = Int(timeInterval)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
     
     /// Calculates time until next wash is needed
@@ -303,7 +270,8 @@ struct PetCardView: View {
 #Preview {
     let modelContext = ModelContext(try! ModelContainer(for: Pet.self, LaundryTask.self, AppSettings.self))
     let samplePet = Pet(name: "Fluffy", cycleFrequencyDays: 7)
+    let petViewModel = PetViewModel(pet: samplePet, modelContext: modelContext)
     
-    return PetCardView(pet: samplePet, modelContext: modelContext, onDelete: { _ in })
+    return PetCardView(pet: samplePet, modelContext: modelContext, petViewModel: petViewModel)
         .padding()
 }

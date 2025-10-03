@@ -22,6 +22,10 @@ final class PetsViewModel: ObservableObject {
     /// Automatically triggers SwiftUI view updates when modified
     @Published var pets: [Pet] = []
     
+    /// Shared PetViewModel instances to prevent recreation and memory leaks
+    /// Key: Pet ID, Value: PetViewModel instance
+    private var petViewModels: [UUID: PetViewModel] = [:]
+    
     /// User-friendly error message for display in alerts
     /// nil when no error, contains descriptive message when error occurs
     @Published var errorMessage: String? = nil
@@ -60,6 +64,28 @@ final class PetsViewModel: ObservableObject {
         setupPetStateUpdateObservation()
     }
     
+    // MARK: - PetViewModel Management
+    
+    /// Gets or creates a shared PetViewModel instance for the specified pet
+    /// Prevents memory leaks by reusing instances instead of creating new ones
+    func getPetViewModel(for pet: Pet) -> PetViewModel {
+        if let existingViewModel = petViewModels[pet.id] {
+            // Return existing view model without updating (prevents infinite loop)
+            return existingViewModel
+        } else {
+            // Create new view model and store it
+            let newViewModel = PetViewModel(pet: pet, modelContext: modelContext)
+            petViewModels[pet.id] = newViewModel
+            return newViewModel
+        }
+    }
+    
+    /// Removes a PetViewModel instance when a pet is deleted
+    /// Cleans up memory and prevents orphaned view models
+    func removePetViewModel(for petId: UUID) {
+        petViewModels.removeValue(forKey: petId)
+    }
+    
     // MARK: - Private Methods
     
     /// Sets up observation of pet state update notifications
@@ -67,11 +93,12 @@ final class PetsViewModel: ObservableObject {
     private func setupPetStateUpdateObservation() {
         petStateUpdateCancellable = NotificationCenter.default
             .publisher(for: .petStateUpdated)
+            .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
-                #if DEBUG
-                print("📢 Received pet state update notification - refreshing pets list")
-                #endif
-                self?.loadPets()
+                // Defer to next run loop to avoid publishing during view updates
+                DispatchQueue.main.async {
+                    self?.loadPets()
+                }
             }
         
         #if DEBUG
@@ -96,10 +123,7 @@ final class PetsViewModel: ObservableObject {
             // Update published property on main thread
             self.pets = fetchedPets
             
-            #if DEBUG
-            print("✅ Loaded \(fetchedPets.count) pets")
-            print("📋 Pet names: \(fetchedPets.map { $0.name })")
-            #endif
+            // Pets loaded successfully (debug logging removed for performance)
             
         } catch {
             // Log error for debugging
@@ -167,6 +191,9 @@ final class PetsViewModel: ObservableObject {
             
             return
         }
+        
+        // Clean up the PetViewModel instance
+        removePetViewModel(for: pet.id)
         
         // Pet deleted successfully, reload the pets list
         loadPets()

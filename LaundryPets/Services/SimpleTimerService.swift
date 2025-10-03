@@ -79,7 +79,9 @@ final class SimpleTimerService {
         // Prevent duplicate timers
         guard timerCancellable == nil else {
             #if DEBUG
-            print("⚠️ Health update timer already running")
+            if ProcessInfo.processInfo.environment["TIMER_DEBUG"] == "1" {
+                print("⚠️ Health update timer already running")
+            }
             #endif
             return
         }
@@ -113,7 +115,9 @@ final class SimpleTimerService {
         
         // Debug logging (can be disabled in production for performance)
         #if DEBUG
-        print("💓 Health update broadcast")
+        if ProcessInfo.processInfo.environment["TIMER_DEBUG"] == "1" {
+            print("💓 Health update broadcast")
+        }
         #endif
     }
 }

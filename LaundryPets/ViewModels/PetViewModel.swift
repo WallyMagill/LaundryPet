@@ -110,6 +110,12 @@ final class PetViewModel: ObservableObject {
         updateHealthDisplay()
     }
     
+    deinit {
+        // Clean up all subscriptions to prevent memory leaks
+        timerObservationCancellables.removeAll()
+        healthUpdateCancellable?.cancel()
+    }
+    
     // MARK: - Setup Methods
     
     /// Sets up observation of timer service properties
@@ -136,9 +142,7 @@ final class PetViewModel: ObservableObject {
             }
             .store(in: &timerObservationCancellables)
         
-        #if DEBUG
-        print("✅ Timer observation setup for pet: \(pet.name)")
-        #endif
+        // Timer observation setup complete
     }
     
     /// Sets up observation of global health update broadcasts
@@ -150,9 +154,7 @@ final class PetViewModel: ObservableObject {
                 self?.updateHealthDisplay()
             }
         
-        #if DEBUG
-        print("✅ Health update observation setup for pet: \(pet.name)")
-        #endif
+        // Health update observation setup complete
     }
     
     /// Notifies other components that this pet's state has been updated
@@ -162,9 +164,7 @@ final class PetViewModel: ObservableObject {
             name: .petStateUpdated,
             object: pet.id
         )
-        #if DEBUG
-        print("📢 Posted pet state update notification for: \(pet.name)")
-        #endif
+        // Debug logging removed to reduce console spam
     }
     
     /// Sets up observation of timer completion notifications
@@ -180,9 +180,42 @@ final class PetViewModel: ObservableObject {
             }
             .store(in: &timerObservationCancellables)
         
-        #if DEBUG
-        print("✅ Timer completion observation setup for pet: \(pet.name)")
-        #endif
+        // Timer completion observation setup complete
+    }
+    
+    /// Restores timer state if there's an active task that needs timing
+    /// Called after loading current task to ensure timer is running
+    private func restoreTimerIfNeeded() {
+        guard let task = currentTask else { return }
+        
+        // Only restore timer for washing or drying stages
+        guard task.currentStage == .washing || task.currentStage == .drying else { return }
+        
+        // Don't start timer if one is already active (prevents duplicates)
+        guard !timerService.isActive else { return }
+        
+        // Check if timer should still be active based on task timing
+        if let washEndTime = task.washEndTime, task.currentStage == .drying {
+            // Drying stage - check if dry timer should still be running
+            let dryDuration = TimeInterval(pet.dryDurationMinutes * 60)
+            let expectedDryEndTime = washEndTime.addingTimeInterval(dryDuration)
+            
+            if Date() < expectedDryEndTime {
+                // Dry timer should still be running
+                let remainingTime = expectedDryEndTime.timeIntervalSinceNow
+                timerService.startTimer(duration: remainingTime, type: .dry)
+            }
+        } else if let washStartTime = task.washStartTime, task.currentStage == .washing {
+            // Washing stage - check if wash timer should still be running
+            let washDuration = TimeInterval(pet.washDurationMinutes * 60)
+            let expectedWashEndTime = washStartTime.addingTimeInterval(washDuration)
+            
+            if Date() < expectedWashEndTime {
+                // Wash timer should still be running
+                let remainingTime = expectedWashEndTime.timeIntervalSinceNow
+                timerService.startTimer(duration: remainingTime, type: .wash)
+            }
+        }
     }
     
     /// Loads the current active laundry task for this pet
@@ -202,13 +235,10 @@ final class PetViewModel: ObservableObject {
             
             self.currentTask = petTasks.first
             
-            #if DEBUG
-            if let task = currentTask {
-                print("✅ Loaded current task for \(pet.name): \(task.currentStage.rawValue)")
-            } else {
-                print("ℹ️ No current task found for \(pet.name)")
-            }
-            #endif
+            // Restore timer if there's an active task
+            restoreTimerIfNeeded()
+            
+            // Current task loaded
             
         } catch {
             print("❌ Failed to load current task: \(error)")
@@ -223,12 +253,15 @@ final class PetViewModel: ObservableObject {
     private func updateHealthDisplay() {
         let (newHealth, newState) = healthUpdateService.updateHealthAndState(for: pet)
         
+        // Only update if values have actually changed to prevent unnecessary UI updates
+        guard newHealth != healthPercentage || newState != petState else {
+            return
+        }
+        
         self.healthPercentage = newHealth
         self.petState = newState
         
-        #if DEBUG
-        print("✅ Health display updated for \(pet.name): \(newHealth)% -> \(newState.rawValue)")
-        #endif
+        // Health display updated
     }
     
     /// Handles timer completion events and transitions between stages
@@ -304,8 +337,7 @@ final class PetViewModel: ObservableObject {
             // Start the wash phase
             startWash()
             
-            // Notify dashboard of state change
-            notifyPetStateUpdated()
+            // Note: startWash() will handle the notification
             
         } catch {
             #if DEBUG
@@ -550,6 +582,18 @@ final class PetViewModel: ObservableObject {
         print("✅ Refreshed pet data for \(pet.name)")
         #endif
         return true
+    }
+    
+    /// Refreshes the ViewModel with updated pet data from the database
+    /// Called when the pet data changes to keep the ViewModel in sync
+    /// - Parameter updatedPet: The updated pet data to sync with
+    func updatePet(_ updatedPet: Pet) {
+        // Refresh current task and health display with updated pet data
+        loadCurrentTask()
+        updateHealthDisplay()
+        
+        // Note: Removed notifyPetStateUpdated() to prevent infinite loops
+        // Pet state updates should be handled by the timer service and health updates
     }
     
     /// Updates the pet's name

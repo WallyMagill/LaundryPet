@@ -300,10 +300,7 @@ final class PetTimerService: ObservableObject {
                 // Update published properties on main thread
                 self.timeRemaining = max(0, remaining)
                 
-                // Debug logging (can be disabled in production)
-                #if DEBUG
-                print("⏱️ Timer tick: \(Int(remaining))s remaining (\(self.timerType.displayName))")
-                #endif
+                // Debug logging disabled for performance
                 
                 // Check for completion
                 if remaining <= 0 {
@@ -314,8 +311,6 @@ final class PetTimerService: ObservableObject {
     
     /// Handles timer completion - posts notification and clears state
     private func handleTimerCompletion() {
-        let completedType = timerType.displayName
-        
         // Clear timer state first
         clearTimerState()
         

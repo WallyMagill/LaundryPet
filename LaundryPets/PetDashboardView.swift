@@ -154,10 +154,11 @@ struct PetDashboardView: View {
             } else {
                 LazyVStack(spacing: 12) {
                     ForEach(sortedPets) { pet in
-                        PetCardView(pet: pet, modelContext: modelContext) { petToDelete in
-                            self.petToDelete = petToDelete
-                            self.showingDeleteConfirmation = true
-                        }
+                        PetCardView(
+                            pet: pet, 
+                            modelContext: modelContext, 
+                            petViewModel: petsViewModel.getPetViewModel(for: pet)
+                        )
                     }
                 }
                 .padding(.horizontal, 16)

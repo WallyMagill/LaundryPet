@@ -39,10 +39,7 @@ final class HealthUpdateService {
         let hoursElapsed = timeElapsed / 3600
         let daysElapsed = hoursElapsed / 24
         
-        print("🔍 Health calculation for \(pet.name):")
-        print("   Reference date: \(referenceDate)")
-        print("   Days elapsed: \(String(format: "%.2f", daysElapsed))")
-        print("   Cycle frequency: \(pet.cycleFrequencyDays) days")
+        // Health calculation complete
         
         // Ensure cycleFrequencyDays is valid for calculation
         guard pet.cycleFrequencyDays > 0 else {
@@ -55,8 +52,12 @@ final class HealthUpdateService {
         let decayPercentage = (daysElapsed / Double(pet.cycleFrequencyDays)) * 100
         let calculatedHealth = max(0, 100 - Int(round(decayPercentage)))
         
-        print("   Decay percentage: \(String(format: "%.2f", decayPercentage))%")
-        print("   Calculated health: \(calculatedHealth)%")
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["HEALTH_DEBUG"] == "1" {
+            print("   Decay percentage: \(String(format: "%.2f", decayPercentage))%")
+            print("   Calculated health: \(calculatedHealth)%")
+        }
+        #endif
         
         return calculatedHealth
     }
@@ -89,7 +90,7 @@ final class HealthUpdateService {
         let newHealth = calculateCurrentHealth(for: pet)
         let newState = evaluateState(fromHealth: newHealth)
         
-        print("✅ Health updated for \(pet.name): \(newHealth)% -> \(newState.rawValue)")
+        // Health updated
         
         return (newHealth, newState)
     }

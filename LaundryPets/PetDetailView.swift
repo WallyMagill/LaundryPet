@@ -13,13 +13,27 @@ struct PetDetailView: View {
     let modelContext: ModelContext
     @Environment(\.dismiss) private var dismiss
     
-    @StateObject private var petViewModel: PetViewModel
+    @ObservedObject var petViewModel: PetViewModel
     @State private var showingSettings = false
     
-    init(pet: Pet, modelContext: ModelContext) {
+    // Cached computed values to prevent recalculation during scrolling
+    @State private var cachedDaysSinceCreated: Int = 0
+    @State private var cachedPetStateIcon: String = "face.smiling"
+    @State private var cachedPetStateColor: Color = .green
+    @State private var cachedPetStateText: String = ""
+    
+    init(pet: Pet, modelContext: ModelContext, petViewModel: PetViewModel) {
         self.pet = pet
         self.modelContext = modelContext
-        self._petViewModel = StateObject(wrappedValue: PetViewModel(pet: pet, modelContext: modelContext))
+        self.petViewModel = petViewModel
+    }
+    
+    // Cache expensive computed values on appear
+    private func updateCachedValues() {
+        cachedDaysSinceCreated = calculateDaysSinceCreated()
+        cachedPetStateIcon = calculatePetStateIcon()
+        cachedPetStateColor = calculatePetStateColor()
+        cachedPetStateText = calculatePetStateText()
     }
     
     var body: some View {
@@ -56,7 +70,7 @@ struct PetDetailView: View {
             }
         }
         .sheet(isPresented: $showingSettings) {
-            PetSettingsView(pet: pet, modelContext: modelContext)
+            PetSettingsView(pet: pet, modelContext: modelContext, petViewModel: petViewModel)
         }
         .alert("Error", isPresented: $petViewModel.showError) {
             Button("OK") {
@@ -65,29 +79,43 @@ struct PetDetailView: View {
         } message: {
             Text(petViewModel.errorMessage ?? "An unknown error occurred")
         }
+        .onAppear {
+            updateCachedValues()
+        }
+        .onChange(of: petViewModel.currentTask) { oldValue, newValue in
+            // Only update if the task actually changed
+            guard oldValue?.id != newValue?.id else { return }
+            updateCachedValues()
+        }
+        .onChange(of: petViewModel.petState) { oldValue, newValue in
+            // Only update if the state actually changed
+            guard oldValue != newValue else { return }
+            updateCachedValues()
+        }
     }
     
     // MARK: - Pet Status Section
     
     private var petStatusSection: some View {
         VStack(spacing: 16) {
-            // Large Pet State Icon
-            Image(systemName: petStateIcon)
+            // Large Pet State Icon - Optimized for performance
+            Image(systemName: cachedPetStateIcon)
                 .font(.system(size: 80, weight: .light))
-                .foregroundColor(petStateColor)
+                .foregroundColor(cachedPetStateColor)
                 .frame(width: 120, height: 120)
                 .background(
                     Circle()
-                        .fill(petStateColor.opacity(0.1))
+                        .fill(cachedPetStateColor.opacity(0.1))
                         .overlay(
                             Circle()
-                                .stroke(petStateColor.opacity(0.3), lineWidth: 3)
+                                .stroke(cachedPetStateColor.opacity(0.3), lineWidth: 3)
                         )
                 )
-                .shadow(color: petStateColor.opacity(0.2), radius: 10, x: 0, y: 5)
+                .shadow(color: cachedPetStateColor.opacity(0.2), radius: 10, x: 0, y: 5)
+                .drawingGroup() // Rasterize for better performance
             
             // Pet State Text
-            Text(petStateText)
+            Text(cachedPetStateText)
                 .font(.system(size: 24, weight: .semibold, design: .rounded))
                 .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
@@ -112,25 +140,26 @@ struct PetDetailView: View {
                 Spacer()
                 Text("\(petViewModel.healthPercentage)%")
                     .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundColor(healthColor)
+                    .foregroundColor(calculateHealthColor())
             }
             
-            // Health Bar
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(height: 12)
-                        .cornerRadius(6)
-                    
-                    Rectangle()
-                        .fill(healthColor)
-                        .frame(width: geometry.size.width * CGFloat(petViewModel.healthPercentage) / 100, height: 12)
-                        .cornerRadius(6)
-                        .animation(.easeInOut(duration: 0.5), value: petViewModel.healthPercentage)
-                }
+            // Health Bar - Optimized for performance (no GeometryReader)
+            HStack(spacing: 0) {
+                Rectangle()
+                    .fill(calculateHealthColor())
+                    .frame(height: 12)
+                    .frame(maxWidth: .infinity)
+                    .scaleEffect(x: CGFloat(petViewModel.healthPercentage) / 100, y: 1, anchor: .leading)
+                    .animation(.easeInOut(duration: 0.5), value: petViewModel.healthPercentage)
+                
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 12)
+                    .frame(maxWidth: .infinity)
+                    .scaleEffect(x: CGFloat(100 - petViewModel.healthPercentage) / 100, y: 1, anchor: .trailing)
             }
-            .frame(height: 12)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .drawingGroup() // Rasterize for better performance
             
             // Health Info
             VStack(spacing: 8) {
@@ -187,13 +216,13 @@ struct PetDetailView: View {
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                 
-                // Timer Display
-                if petViewModel.timerActive {
-                    Text(petViewModel.getFormattedTimeRemaining())
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
-                        .foregroundColor(.blue)
-                        .monospacedDigit()
-                }
+                // Timer Display - Isolated for performance
+                TimerDisplayView(
+                    timeRemaining: petViewModel.timeRemaining,
+                    isActive: petViewModel.timerActive
+                )
+                .equatable()
+                .id("timer-\(pet.id)")
             }
             .padding(.vertical, 12)
             
@@ -320,7 +349,7 @@ struct PetDetailView: View {
                 
                 StatCard(
                     title: "Days Since Created",
-                    value: "\(daysSinceCreated)",
+                    value: "\(cachedDaysSinceCreated)",
                     icon: "calendar.circle.fill",
                     color: .green
                 )
@@ -337,7 +366,7 @@ struct PetDetailView: View {
     
     // MARK: - Computed Properties
     
-    private var petStateIcon: String {
+    private func calculatePetStateIcon() -> String {
         if let task = petViewModel.currentTask, !task.isCompleted {
             switch task.currentStage {
             case .washing:
@@ -347,14 +376,14 @@ struct PetDetailView: View {
             case .dryComplete:
                 return "hand.raised.fill"
             default:
-                return healthBasedIcon
+                return calculateHealthBasedIcon()
             }
         } else {
-            return healthBasedIcon
+            return calculateHealthBasedIcon()
         }
     }
     
-    private var healthBasedIcon: String {
+    private func calculateHealthBasedIcon() -> String {
         switch petViewModel.petState {
         case .happy, .neutral:
             return "face.smiling"
@@ -365,7 +394,7 @@ struct PetDetailView: View {
         }
     }
     
-    private var petStateColor: Color {
+    private func calculatePetStateColor() -> Color {
         if let task = petViewModel.currentTask, !task.isCompleted {
             switch task.currentStage {
             case .washing:
@@ -375,14 +404,14 @@ struct PetDetailView: View {
             case .dryComplete:
                 return .purple
             default:
-                return healthColor
+                return calculateHealthColor()
             }
         } else {
-            return healthColor
+            return calculateHealthColor()
         }
     }
     
-    private var healthColor: Color {
+    private func calculateHealthColor() -> Color {
         switch petViewModel.petState {
         case .happy:
             return .green
@@ -397,7 +426,7 @@ struct PetDetailView: View {
         }
     }
     
-    private var petStateText: String {
+    private func calculatePetStateText() -> String {
         if let task = petViewModel.currentTask, !task.isCompleted {
             return task.currentStage.displayText
         } else {
@@ -438,7 +467,7 @@ struct PetDetailView: View {
         return task.currentStage.isActionable
     }
     
-    private var daysSinceCreated: Int {
+    private func calculateDaysSinceCreated() -> Int {
         let calendar = Calendar.current
         let days = calendar.dateComponents([.day], from: pet.createdDate, to: Date()).day ?? 0
         return max(0, days)
@@ -555,20 +584,21 @@ struct PetSettingsView: View {
     let modelContext: ModelContext
     @Environment(\.dismiss) private var dismiss
     
-    @StateObject private var petViewModel: PetViewModel
+    @ObservedObject var petViewModel: PetViewModel
     @State private var cycleFrequency: Int
     @State private var washDuration: Int
     @State private var dryDuration: Int
     @State private var showingResetConfirmation = false
+    @State private var showingDeleteConfirmation = false
     @State private var showingError = false
     @State private var errorMessage = ""
     @State private var showingEditName = false
     @State private var newPetName = ""
     
-    init(pet: Pet, modelContext: ModelContext) {
+    init(pet: Pet, modelContext: ModelContext, petViewModel: PetViewModel) {
         self.pet = pet
         self.modelContext = modelContext
-        self._petViewModel = StateObject(wrappedValue: PetViewModel(pet: pet, modelContext: modelContext))
+        self.petViewModel = petViewModel
         self._cycleFrequency = State(initialValue: pet.cycleFrequencyDays)
         self._washDuration = State(initialValue: pet.washDurationMinutes)
         self._dryDuration = State(initialValue: pet.dryDurationMinutes)
@@ -756,7 +786,7 @@ struct PetSettingsView: View {
                     .foregroundColor(.orange)
                     
                     Button("Delete Pet") {
-                        // TODO: Implement pet deletion
+                        showingDeleteConfirmation = true
                     }
                     .foregroundColor(.red)
                 }
@@ -778,6 +808,14 @@ struct PetSettingsView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This will reset all statistics for \(pet.name) including total cycles, streaks, and health. This action cannot be undone.")
+        }
+        .alert("Delete Pet", isPresented: $showingDeleteConfirmation) {
+            Button("Delete", role: .destructive) {
+                deletePet()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Are you sure you want to delete \(pet.name)? This action cannot be undone and will also delete all associated laundry tasks.")
         }
         .alert("Edit Pet Name", isPresented: $showingEditName) {
             TextField("Pet Name", text: $newPetName)
@@ -890,6 +928,35 @@ struct PetSettingsView: View {
             showingError = true
         }
     }
+    
+    private func deletePet() {
+        do {
+            // Delete all associated laundry tasks
+            let taskDescriptor = FetchDescriptor<LaundryTask>()
+            let allTasks = try modelContext.fetch(taskDescriptor)
+            let petTasks = allTasks.filter { $0.petID == pet.id }
+            
+            for task in petTasks {
+                modelContext.delete(task)
+            }
+            
+            // Delete the pet
+            modelContext.delete(pet)
+            
+            // Save changes
+            try modelContext.save()
+            
+            // Dismiss the settings view and return to dashboard
+            dismiss()
+            
+        } catch {
+            #if DEBUG
+            print("❌ Failed to delete pet: \(error)")
+            #endif
+            errorMessage = "Failed to delete pet. Please try again."
+            showingError = true
+        }
+    }
 }
 
 // MARK: - Preview
@@ -898,7 +965,7 @@ struct PetSettingsView: View {
     let modelContext = ModelContext(try! ModelContainer(for: Pet.self, LaundryTask.self, AppSettings.self))
     let samplePet = Pet(name: "Fluffy", cycleFrequencyDays: 7)
     
-    return NavigationView {
-        PetDetailView(pet: samplePet, modelContext: modelContext)
+    NavigationView {
+        PetDetailView(pet: samplePet, modelContext: modelContext, petViewModel: PetViewModel(pet: samplePet, modelContext: modelContext))
     }
 }
