@@ -136,7 +136,9 @@ final class PetViewModel: ObservableObject {
             }
             .store(in: &timerObservationCancellables)
         
+        #if DEBUG
         print("✅ Timer observation setup for pet: \(pet.name)")
+        #endif
     }
     
     /// Sets up observation of global health update broadcasts
@@ -148,7 +150,9 @@ final class PetViewModel: ObservableObject {
                 self?.updateHealthDisplay()
             }
         
+        #if DEBUG
         print("✅ Health update observation setup for pet: \(pet.name)")
+        #endif
     }
     
     /// Notifies other components that this pet's state has been updated
@@ -158,7 +162,9 @@ final class PetViewModel: ObservableObject {
             name: .petStateUpdated,
             object: pet.id
         )
+        #if DEBUG
         print("📢 Posted pet state update notification for: \(pet.name)")
+        #endif
     }
     
     /// Sets up observation of timer completion notifications
@@ -174,7 +180,9 @@ final class PetViewModel: ObservableObject {
             }
             .store(in: &timerObservationCancellables)
         
+        #if DEBUG
         print("✅ Timer completion observation setup for pet: \(pet.name)")
+        #endif
     }
     
     /// Loads the current active laundry task for this pet
@@ -194,11 +202,13 @@ final class PetViewModel: ObservableObject {
             
             self.currentTask = petTasks.first
             
+            #if DEBUG
             if let task = currentTask {
                 print("✅ Loaded current task for \(pet.name): \(task.currentStage.rawValue)")
             } else {
                 print("ℹ️ No current task found for \(pet.name)")
             }
+            #endif
             
         } catch {
             print("❌ Failed to load current task: \(error)")
@@ -216,14 +226,18 @@ final class PetViewModel: ObservableObject {
         self.healthPercentage = newHealth
         self.petState = newState
         
+        #if DEBUG
         print("✅ Health display updated for \(pet.name): \(newHealth)% -> \(newState.rawValue)")
+        #endif
     }
     
     /// Handles timer completion events and transitions between stages
     /// Called automatically when a timer finishes
     private func handleTimerCompletion() {
         guard let task = currentTask else {
+            #if DEBUG
             print("❌ Timer completed but no current task")
+            #endif
             return
         }
         
@@ -234,20 +248,28 @@ final class PetViewModel: ObservableObject {
                 task.currentStage = .washComplete
                 task.washEndTime = Date()
                 try modelContext.save()
+                #if DEBUG
                 print("✅ Wash completed for \(pet.name) - ready to start dryer")
+                #endif
                 
             case .drying:
                 // Dry timer completed - transition to dryComplete
                 task.currentStage = .dryComplete
                 task.dryEndTime = Date()
                 try modelContext.save()
+                #if DEBUG
                 print("✅ Dry completed for \(pet.name) - ready to fold or dry more")
+                #endif
                 
             default:
+                #if DEBUG
                 print("⚠️ Timer completed but stage \(task.currentStage.rawValue) doesn't need transition")
+                #endif
             }
         } catch {
+            #if DEBUG
             print("❌ Failed to update task after timer completion: \(error)")
+            #endif
             self.errorMessage = "Unable to update laundry progress. Please restart the app."
             self.showError = true
         }
@@ -275,7 +297,9 @@ final class PetViewModel: ObservableObject {
             // Update current task reference
             self.currentTask = task
             
+            #if DEBUG
             print("✅ Started new cycle for \(pet.name)")
+            #endif
             
             // Start the wash phase
             startWash()
@@ -284,7 +308,9 @@ final class PetViewModel: ObservableObject {
             notifyPetStateUpdated()
             
         } catch {
+            #if DEBUG
             print("❌ Failed to start cycle: \(error)")
+            #endif
             self.errorMessage = "Unable to start laundry cycle. Please try again."
             self.showError = true
         }
@@ -294,7 +320,9 @@ final class PetViewModel: ObservableObject {
     /// Updates task state and starts wash timer
     func startWash() {
         guard let task = currentTask else {
+            #if DEBUG
             print("❌ Cannot start wash: no current task")
+            #endif
             self.errorMessage = "No active laundry task. Please start a new cycle."
             self.showError = true
             return
@@ -312,13 +340,17 @@ final class PetViewModel: ObservableObject {
             let washDuration = TimeInterval(pet.washDurationMinutes * 60)
             timerService.startTimer(duration: washDuration, type: .wash)
             
+            #if DEBUG
             print("✅ Started wash for \(pet.name): \(pet.washDurationMinutes) minutes")
+            #endif
             
             // Notify dashboard of state change
             notifyPetStateUpdated()
             
         } catch {
+            #if DEBUG
             print("❌ Failed to start wash: \(error)")
+            #endif
             self.errorMessage = "Unable to start wash cycle. Please try again."
             self.showError = true
         }
@@ -328,7 +360,9 @@ final class PetViewModel: ObservableObject {
     /// Updates task state and starts dry timer
     func startDry() {
         guard let task = currentTask else {
+            #if DEBUG
             print("❌ Cannot start dry: no current task")
+            #endif
             self.errorMessage = "No active laundry task. Please start a new cycle."
             self.showError = true
             return
@@ -347,13 +381,17 @@ final class PetViewModel: ObservableObject {
             let dryDuration = TimeInterval(pet.dryDurationMinutes * 60)
             timerService.startTimer(duration: dryDuration, type: .dry)
             
+            #if DEBUG
             print("✅ Started dry for \(pet.name): \(pet.dryDurationMinutes) minutes")
+            #endif
             
             // Notify dashboard of state change
             notifyPetStateUpdated()
             
         } catch {
+            #if DEBUG
             print("❌ Failed to start dry: \(error)")
+            #endif
             self.errorMessage = "Unable to start dry cycle. Please try again."
             self.showError = true
         }
@@ -363,7 +401,9 @@ final class PetViewModel: ObservableObject {
     /// Updates task as completed, restores pet health, and updates statistics
     func completeCycle() {
         guard let task = currentTask else {
+            #if DEBUG
             print("❌ Cannot complete cycle: no current task")
+            #endif
             self.errorMessage = "No active laundry task to complete."
             self.showError = true
             return
@@ -392,13 +432,17 @@ final class PetViewModel: ObservableObject {
             // Update health display
             updateHealthDisplay()
             
+            #if DEBUG
             print("✅ Completed cycle for \(pet.name) - Stats: \(pet.totalCyclesCompleted) cycles, \(pet.currentStreak) streak")
+            #endif
             
             // Notify dashboard of state change
             notifyPetStateUpdated()
             
         } catch {
+            #if DEBUG
             print("❌ Failed to complete cycle: \(error)")
+            #endif
             self.errorMessage = "Unable to complete laundry cycle. Please try again."
             self.showError = true
         }
@@ -414,9 +458,13 @@ final class PetViewModel: ObservableObject {
             do {
                 task.currentStage = .cycle
                 try modelContext.save()
+                #if DEBUG
                 print("✅ Cancelled timer and reset task for \(pet.name)")
+                #endif
             } catch {
+                #if DEBUG
                 print("❌ Failed to reset task after cancellation: \(error)")
+                #endif
                 self.errorMessage = "Unable to reset laundry task. Please restart the app."
                 self.showError = true
             }
@@ -430,14 +478,18 @@ final class PetViewModel: ObservableObject {
     func addMoreDryTime(additionalMinutes: Int = 10) -> Bool {
         // Validate input
         guard additionalMinutes > 0, additionalMinutes <= 120 else {
+            #if DEBUG
             print("❌ Invalid dry time: \(additionalMinutes) minutes (must be 1-120)")
+            #endif
             self.errorMessage = "Please enter a valid dry time (1-120 minutes)."
             self.showError = true
             return false
         }
         
         guard let task = currentTask, task.currentStage == .dryComplete else {
+            #if DEBUG
             print("❌ Cannot add dry time: no current task or wrong stage")
+            #endif
             self.errorMessage = "Cannot add dry time at this stage."
             self.showError = true
             return false
@@ -459,11 +511,15 @@ final class PetViewModel: ObservableObject {
             let additionalDuration = TimeInterval(additionalMinutes * 60)
             timerService.startTimer(duration: additionalDuration, type: .extraDry)
             
+            #if DEBUG
             print("✅ Added \(additionalMinutes) more dry minutes for \(pet.name)")
+            #endif
             return true
             
         } catch {
+            #if DEBUG
             print("❌ Failed to add dry time: \(error)")
+            #endif
             self.errorMessage = "Unable to add more drying time. Please try again."
             self.showError = true
             return false
@@ -478,7 +534,9 @@ final class PetViewModel: ObservableObject {
     @discardableResult
     func refreshPetData() -> Bool {
         guard petService.fetchPet(by: pet.id) != nil else {
+            #if DEBUG
             print("❌ Failed to refresh pet data for \(pet.name)")
+            #endif
             self.errorMessage = "Unable to refresh pet data. Please restart the app."
             self.showError = true
             return false
@@ -488,7 +546,9 @@ final class PetViewModel: ObservableObject {
         // But we can update our health display with fresh data
         updateHealthDisplay()
         
+        #if DEBUG
         print("✅ Refreshed pet data for \(pet.name)")
+        #endif
         return true
     }
     
@@ -500,7 +560,9 @@ final class PetViewModel: ObservableObject {
         let success = petService.updatePetName(pet, newName: newName)
         
         if success {
+            #if DEBUG
             print("✅ Updated pet name to: \(newName)")
+            #endif
             // Notify dashboard of state change
             notifyPetStateUpdated()
         } else {
@@ -525,7 +587,9 @@ final class PetViewModel: ObservableObject {
         )
         
         if success {
+            #if DEBUG
             print("✅ Updated timer settings for \(pet.name)")
+            #endif
         } else {
             self.errorMessage = "Unable to update timer settings. Please try again."
             self.showError = true
@@ -543,7 +607,9 @@ final class PetViewModel: ObservableObject {
         if success {
             // Update health display after reset
             updateHealthDisplay()
+            #if DEBUG
             print("✅ Reset statistics for \(pet.name)")
+            #endif
         } else {
             self.errorMessage = "Unable to reset pet statistics. Please try again."
             self.showError = true

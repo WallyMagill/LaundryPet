@@ -15,14 +15,11 @@ struct PetDetailView: View {
     
     @StateObject private var petViewModel: PetViewModel
     @State private var showingSettings = false
-    @State private var showingEditName = false
-    @State private var newPetName = ""
     
     init(pet: Pet, modelContext: ModelContext) {
         self.pet = pet
         self.modelContext = modelContext
         self._petViewModel = StateObject(wrappedValue: PetViewModel(pet: pet, modelContext: modelContext))
-        self._newPetName = State(initialValue: pet.name)
     }
     
     var body: some View {
@@ -40,8 +37,6 @@ struct PetDetailView: View {
                 // MARK: - Statistics Section
                 statisticsSection
                 
-                // MARK: - Quick Actions Section
-                quickActionsSection
                 
                 // Bottom padding
                 Color.clear.frame(height: 20)
@@ -62,19 +57,6 @@ struct PetDetailView: View {
         }
         .sheet(isPresented: $showingSettings) {
             PetSettingsView(pet: pet, modelContext: modelContext)
-        }
-        .alert("Edit Pet Name", isPresented: $showingEditName) {
-            TextField("Pet Name", text: $newPetName)
-            Button("Save") {
-                if !newPetName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    _ = petViewModel.updatePetName(newPetName.trimmingCharacters(in: .whitespacesAndNewlines))
-                }
-            }
-            Button("Cancel", role: .cancel) {
-                newPetName = pet.name
-            }
-        } message: {
-            Text("Enter a new name for \(pet.name)")
         }
         .alert("Error", isPresented: $petViewModel.showError) {
             Button("OK") {
@@ -352,55 +334,6 @@ struct PetDetailView: View {
         )
     }
     
-    // MARK: - Quick Actions Section
-    
-    private var quickActionsSection: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Text("Quick Actions")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.primary)
-                Spacer()
-                Image(systemName: "bolt.fill")
-                    .foregroundColor(.yellow)
-            }
-            
-            VStack(spacing: 12) {
-                QuickActionRow(
-                    icon: "pencil",
-                    title: "Edit Pet Name",
-                    subtitle: "Change \(pet.name)'s name",
-                    action: {
-                        showingEditName = true
-                    }
-                )
-                
-                QuickActionRow(
-                    icon: "gear",
-                    title: "Pet Settings",
-                    subtitle: "Manage cycle frequency and timers",
-                    action: {
-                        showingSettings = true
-                    }
-                )
-                
-                QuickActionRow(
-                    icon: "chart.bar.fill",
-                    title: "View History",
-                    subtitle: "See detailed laundry history",
-                    action: {
-                        // TODO: Implement history view
-                    }
-                )
-            }
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
-        )
-    }
     
     // MARK: - Computed Properties
     
@@ -614,41 +547,6 @@ struct StatCard: View {
     }
 }
 
-struct QuickActionRow: View {
-    let icon: String
-    let title: String
-    let subtitle: String
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 16))
-                    .foregroundColor(.blue)
-                    .frame(width: 20)
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.primary)
-                    
-                    Text(subtitle)
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.secondary)
-            }
-            .padding(.vertical, 8)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
 
 // MARK: - PetSettingsView
 
@@ -664,6 +562,8 @@ struct PetSettingsView: View {
     @State private var showingResetConfirmation = false
     @State private var showingError = false
     @State private var errorMessage = ""
+    @State private var showingEditName = false
+    @State private var newPetName = ""
     
     init(pet: Pet, modelContext: ModelContext) {
         self.pet = pet
@@ -672,6 +572,7 @@ struct PetSettingsView: View {
         self._cycleFrequency = State(initialValue: pet.cycleFrequencyDays)
         self._washDuration = State(initialValue: pet.washDurationMinutes)
         self._dryDuration = State(initialValue: pet.dryDurationMinutes)
+        self._newPetName = State(initialValue: pet.name)
     }
     
     var body: some View {
@@ -684,8 +585,18 @@ struct PetSettingsView: View {
                             .foregroundColor(.blue)
                         Text("Name")
                         Spacer()
-                        Text(pet.name)
-                            .foregroundColor(.secondary)
+                        Button(action: {
+                            showingEditName = true
+                        }) {
+                            HStack(spacing: 4) {
+                                Text(pet.name)
+                                    .foregroundColor(.primary)
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
                     
                     HStack {
@@ -868,6 +779,22 @@ struct PetSettingsView: View {
         } message: {
             Text("This will reset all statistics for \(pet.name) including total cycles, streaks, and health. This action cannot be undone.")
         }
+        .alert("Edit Pet Name", isPresented: $showingEditName) {
+            TextField("Pet Name", text: $newPetName)
+            Button("Save") {
+                if !newPetName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    let success = petViewModel.updatePetName(newPetName.trimmingCharacters(in: .whitespacesAndNewlines))
+                    if success {
+                        // Name updated successfully, notification will be posted automatically
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                newPetName = pet.name
+            }
+        } message: {
+            Text("Enter a new name for \(pet.name)")
+        }
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
         } message: {
@@ -898,9 +825,10 @@ struct PetSettingsView: View {
         do {
             pet.cycleFrequencyDays = newValue
             try modelContext.save()
-            print("✅ Updated cycle frequency to \(newValue) days")
         } catch {
+            #if DEBUG
             print("❌ Failed to update cycle frequency: \(error)")
+            #endif
             errorMessage = "Failed to update cycle frequency. Please try again."
             showingError = true
             // Revert the picker selection
@@ -912,9 +840,10 @@ struct PetSettingsView: View {
         do {
             pet.washDurationMinutes = newValue
             try modelContext.save()
-            print("✅ Updated wash duration to \(newValue) minutes")
         } catch {
+            #if DEBUG
             print("❌ Failed to update wash duration: \(error)")
+            #endif
             errorMessage = "Failed to update wash duration. Please try again."
             showingError = true
             // Revert the picker selection
@@ -926,9 +855,10 @@ struct PetSettingsView: View {
         do {
             pet.dryDurationMinutes = newValue
             try modelContext.save()
-            print("✅ Updated dry duration to \(newValue) minutes")
         } catch {
+            #if DEBUG
             print("❌ Failed to update dry duration: \(error)")
+            #endif
             errorMessage = "Failed to update dry duration. Please try again."
             showingError = true
             // Revert the picker selection
@@ -948,13 +878,14 @@ struct PetSettingsView: View {
             pet.currentState = .happy
             
             try modelContext.save()
-            print("✅ Reset statistics for \(pet.name)")
             
             // Refresh the pet view model
             petViewModel.refreshPetData()
             
         } catch {
+            #if DEBUG
             print("❌ Failed to reset statistics: \(error)")
+            #endif
             errorMessage = "Failed to reset statistics. Please try again."
             showingError = true
         }

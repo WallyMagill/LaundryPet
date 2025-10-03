@@ -102,13 +102,17 @@ final class PetTimerService: ObservableObject {
     func startTimer(duration: TimeInterval, type: SimpleTimerType) {
         // Validate duration
         guard duration > 0 else {
+            #if DEBUG
             print("❌ Invalid timer duration: \(duration)s for pet \(petID)")
+            #endif
             return
         }
         
         // Prevent starting if already active
         guard !isActive else {
+            #if DEBUG
             print("⚠️ Timer already active for pet \(petID)")
+            #endif
             return
         }
         
@@ -130,8 +134,6 @@ final class PetTimerService: ObservableObject {
         
         // Start UI update loop
         startUIUpdates()
-        
-        print("⏰ Timer started: \(type.displayName) for \(duration)s (pet \(petID))")
     }
     
     /// Stops the current timer (user cancellation)
@@ -139,14 +141,14 @@ final class PetTimerService: ObservableObject {
     func stopTimer() {
         // Only stop if active
         guard isActive else {
+            #if DEBUG
             print("⚠️ No active timer to stop for pet \(petID)")
+            #endif
             return
         }
         
         // Clear all timer state
         clearTimerState()
-        
-        print("⏹️ Timer stopped for pet \(petID)")
     }
     
     /// Checks if the timer has completed
@@ -177,7 +179,9 @@ final class PetTimerService: ObservableObject {
     /// Saves current timer state to UserDefaults for background persistence
     private func saveTimerState() {
         guard let end = endTime else {
+            #if DEBUG
             print("⚠️ Cannot save timer state: no endTime for pet \(petID)")
+            #endif
             return
         }
         
@@ -194,10 +198,10 @@ final class PetTimerService: ObservableObject {
             
             // Save to UserDefaults with unique key
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-            
-            print("💾 Timer state saved: \(timerType.displayName) until \(end) (pet \(petID))")
         } catch {
+            #if DEBUG
             print("❌ Failed to save timer state for pet \(petID): \(error.localizedDescription)")
+            #endif
             // Remove corrupted data
             UserDefaults.standard.removeObject(forKey: userDefaultsKey)
         }
@@ -208,7 +212,6 @@ final class PetTimerService: ObservableObject {
     private func restoreTimerState() {
         // Load data from UserDefaults
         guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
-            print("ℹ️ No saved timer state for pet \(petID)")
             return
         }
         
@@ -218,7 +221,9 @@ final class PetTimerService: ObservableObject {
             
             // Validate petID matches
             guard state.petID == self.petID else {
+                #if DEBUG
                 print("❌ Timer state petID mismatch: expected \(petID), got \(state.petID)")
+                #endif
                 UserDefaults.standard.removeObject(forKey: userDefaultsKey)
                 return
             }
@@ -227,7 +232,9 @@ final class PetTimerService: ObservableObject {
             
             // Check if timer completed while app was closed
             if now >= state.endTime {
+                #if DEBUG
                 print("✅ Timer completed while app was closed: \(state.timerType.displayName)")
+                #endif
                 handleTimerCompletion()
                 return
             }
@@ -241,10 +248,10 @@ final class PetTimerService: ObservableObject {
             // Resume UI updates
             startUIUpdates()
             
-            print("✅ Timer restored: \(state.timerType.displayName) with \(Int(timeRemaining))s remaining (pet \(petID))")
-            
         } catch {
+            #if DEBUG
             print("❌ Corrupted timer data for pet \(petID): \(error.localizedDescription)")
+            #endif
             // Clear corrupted data
             UserDefaults.standard.removeObject(forKey: userDefaultsKey)
         }
@@ -263,8 +270,6 @@ final class PetTimerService: ObservableObject {
         
         // Remove from UserDefaults
         UserDefaults.standard.removeObject(forKey: userDefaultsKey)
-        
-        print("🗑️ Timer state cleared for pet \(petID)")
     }
     
     // MARK: - Private Methods: UI Updates
@@ -282,7 +287,9 @@ final class PetTimerService: ObservableObject {
                 guard let self = self else { return }
                 
                 guard let endTime = self.endTime else {
+                    #if DEBUG
                     print("❌ No endTime available for pet \(self.petID)")
+                    #endif
                     self.clearTimerState()
                     return
                 }
@@ -300,19 +307,14 @@ final class PetTimerService: ObservableObject {
                 
                 // Check for completion
                 if remaining <= 0 {
-                    print("✅ Timer completed: \(self.timerType.displayName) for pet \(self.petID)")
                     self.handleTimerCompletion()
                 }
             }
-        
-        print("🔄 UI updates started for \(timerType.displayName) timer (pet \(petID))")
     }
     
     /// Handles timer completion - posts notification and clears state
     private func handleTimerCompletion() {
         let completedType = timerType.displayName
-        
-        print("✅ Timer completed: \(completedType) for pet \(petID)")
         
         // Clear timer state first
         clearTimerState()
@@ -324,8 +326,6 @@ final class PetTimerService: ObservableObject {
             object: petID,
             userInfo: ["timerType": timerType.rawValue]
         )
-        
-        print("📢 Timer completion notification posted for pet \(petID)")
     }
     
     // MARK: - Private Methods: App Lifecycle
@@ -342,7 +342,6 @@ final class PetTimerService: ObservableObject {
                 // Save state when backgrounding
                 if self.isActive {
                     self.saveTimerState()
-                    print("📱 App backgrounding - timer state saved for pet \(self.petID)")
                 }
             }
     }

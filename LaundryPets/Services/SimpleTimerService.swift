@@ -78,7 +78,9 @@ final class SimpleTimerService {
     func startHealthUpdates() {
         // Prevent duplicate timers
         guard timerCancellable == nil else {
+            #if DEBUG
             print("⚠️ Health update timer already running")
+            #endif
             return
         }
         
@@ -88,8 +90,6 @@ final class SimpleTimerService {
             .sink { [weak self] _ in
                 self?.broadcastHealthUpdate()
             }
-        
-        print("💚 Health update timer started (every \(updateInterval)s)")
     }
     
     /// Stops the global health update broadcast timer
@@ -98,8 +98,6 @@ final class SimpleTimerService {
         // Cancel timer
         timerCancellable?.cancel()
         timerCancellable = nil
-        
-        print("🛑 Health update timer stopped")
     }
     
     // MARK: - Private Methods

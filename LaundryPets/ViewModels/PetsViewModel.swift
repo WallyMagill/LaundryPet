@@ -68,11 +68,15 @@ final class PetsViewModel: ObservableObject {
         petStateUpdateCancellable = NotificationCenter.default
             .publisher(for: .petStateUpdated)
             .sink { [weak self] _ in
+                #if DEBUG
                 print("📢 Received pet state update notification - refreshing pets list")
+                #endif
                 self?.loadPets()
             }
         
+        #if DEBUG
         print("✅ Pet state update observation setup for dashboard")
+        #endif
     }
     
     // MARK: - Public Methods
@@ -92,12 +96,16 @@ final class PetsViewModel: ObservableObject {
             // Update published property on main thread
             self.pets = fetchedPets
             
+            #if DEBUG
             print("✅ Loaded \(fetchedPets.count) pets")
             print("📋 Pet names: \(fetchedPets.map { $0.name })")
+            #endif
             
         } catch {
             // Log error for debugging
+            #if DEBUG
             print("❌ Operation failed: \(error)")
+            #endif
             
             // Set user-friendly error message
             self.errorMessage = "Unable to load pets. Please restart the app."
@@ -131,9 +139,13 @@ final class PetsViewModel: ObservableObject {
         }
         
         // Pet created successfully, reload the pets list
+        #if DEBUG
         print("🔄 Reloading pets after creation...")
+        #endif
         loadPets()
+        #if DEBUG
         print("📊 Current pets count after reload: \(pets.count)")
+        #endif
         
         // Return the created pet for immediate use
         return newPet
