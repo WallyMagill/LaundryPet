@@ -57,29 +57,26 @@ final class PetService {
         }
     }
     
-    /// Updates an existing pet in the database
-    /// - Parameter pet: The pet to update (must already exist in context)
-    /// - Returns: true if save succeeded, false if it failed
-    func updatePet(_ pet: Pet) -> Bool {
+    /// Saves changes to an existing pet in the database
+    /// Use this after manually modifying pet properties
+    /// - Parameter pet: The pet to save (must already exist in context)
+    /// - Returns: true if save succeeded, false if validation failed or save error
+    func savePet(_ pet: Pet) -> Bool {
         do {
             // Validate pet data before saving
             guard pet.validate() else {
-                print("❌ Pet validation failed before update")
-                // User-friendly error: "Invalid pet data"
+                print("❌ Pet validation failed before save")
                 return false
             }
             
             // Save changes to database
             try modelContext.save()
             
-            print("✅ Pet updated successfully: \(pet.name)")
+            print("✅ Pet saved successfully: \(pet.name)")
             return true
             
         } catch {
-            // Log error with details
-            print("❌ Failed to update pet: \(error.localizedDescription)")
-            
-            // User-friendly error: "Unable to save changes. Please try again."
+            print("❌ Failed to save pet: \(error.localizedDescription)")
             return false
         }
     }
@@ -149,29 +146,156 @@ final class PetService {
         }
     }
     
-    /// Fetches only active pets from the database
-    /// - Returns: Array of active pets, sorted by creation date (oldest first)
-    func fetchActivePets() -> [Pet] {
+    /// Fetches a single pet by its unique identifier
+    /// - Parameter id: The UUID of the pet to fetch
+    /// - Returns: The Pet instance if found, nil if not found or error occurred
+    func fetchPet(by id: UUID) -> Pet? {
         do {
             let descriptor = FetchDescriptor<Pet>(
                 predicate: #Predicate { pet in
-                    pet.isActive == true
-                },
-                sortBy: [SortDescriptor(\.createdDate, order: .forward)]
+                    pet.id == id
+                }
             )
             
             let pets = try modelContext.fetch(descriptor)
             
-            print("✅ Fetched \(pets.count) active pet(s) from database")
-            return pets
+            if let pet = pets.first {
+                print("✅ Fetched pet: \(pet.name) (ID: \(pet.id))")
+                return pet
+            } else {
+                print("⚠️ No pet found with ID: \(id)")
+                return nil
+            }
             
         } catch {
-            // Log error with details
-            print("❌ Failed to fetch active pets: \(error.localizedDescription)")
+            print("❌ Failed to fetch pet by ID: \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    // MARK: - Pet Settings Update Methods
+    
+    /// Updates a pet's name with validation
+    /// - Parameters:
+    ///   - pet: The pet whose name to update
+    ///   - newName: The new name (will be trimmed and validated)
+    /// - Returns: true if update succeeded, false if validation failed or save error
+    func updatePetName(_ pet: Pet, newName: String) -> Bool {
+        // Validate and trim the new name
+        let trimmedName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        guard !trimmedName.isEmpty else {
+            print("❌ Pet name cannot be empty")
+            return false
+        }
+        
+        do {
+            // Update the pet's name
+            pet.name = trimmedName
             
-            // User-friendly error: "Unable to load pets. Please restart the app."
-            // Return empty array as fallback (graceful degradation)
-            return []
+            // Validate the entire pet before saving
+            guard pet.validate() else {
+                print("❌ Pet validation failed after name update")
+                return false
+            }
+            
+            // Save to database
+            try modelContext.save()
+            
+            print("✅ Pet name updated: \(trimmedName)")
+            return true
+            
+        } catch {
+            print("❌ Failed to update pet name: \(error.localizedDescription)")
+            return false
+        }
+    }
+    
+    /// Updates a pet's settings (cycle frequency, wash duration, dry duration)
+    /// - Parameters:
+    ///   - pet: The pet whose settings to update
+    ///   - cycleFrequencyDays: New cycle frequency (nil to keep current)
+    ///   - washDurationMinutes: New wash duration (nil to keep current)
+    ///   - dryDurationMinutes: New dry duration (nil to keep current)
+    /// - Returns: true if update succeeded, false if validation failed or save error
+    func updatePetSettings(_ pet: Pet, 
+                          cycleFrequencyDays: Int? = nil,
+                          washDurationMinutes: Int? = nil,
+                          dryDurationMinutes: Int? = nil) -> Bool {
+        do {
+            // Update cycle frequency if provided
+            if let newFrequency = cycleFrequencyDays {
+                guard (1...30).contains(newFrequency) else {
+                    print("❌ Cycle frequency must be between 1-30 days")
+                    return false
+                }
+                pet.cycleFrequencyDays = newFrequency
+                print("✅ Updated cycle frequency: \(newFrequency) days")
+            }
+            
+            // Update wash duration if provided
+            if let newWashDuration = washDurationMinutes {
+                guard (1...120).contains(newWashDuration) else {
+                    print("❌ Wash duration must be between 1-120 minutes")
+                    return false
+                }
+                pet.washDurationMinutes = newWashDuration
+                print("✅ Updated wash duration: \(newWashDuration) minutes")
+            }
+            
+            // Update dry duration if provided
+            if let newDryDuration = dryDurationMinutes {
+                guard (1...180).contains(newDryDuration) else {
+                    print("❌ Dry duration must be between 1-180 minutes")
+                    return false
+                }
+                pet.dryDurationMinutes = newDryDuration
+                print("✅ Updated dry duration: \(newDryDuration) minutes")
+            }
+            
+            // Validate the entire pet before saving
+            guard pet.validate() else {
+                print("❌ Pet validation failed after settings update")
+                return false
+            }
+            
+            // Save to database
+            try modelContext.save()
+            
+            print("✅ Pet settings updated for: \(pet.name)")
+            return true
+            
+        } catch {
+            print("❌ Failed to update pet settings: \(error.localizedDescription)")
+            return false
+        }
+    }
+    
+    /// Resets a pet's statistics to zero (keeps pet but clears progress)
+    /// - Parameter pet: The pet whose statistics to reset
+    /// - Returns: true if reset succeeded, false if save error
+    func resetPetStatistics(_ pet: Pet) -> Bool {
+        do {
+            // Reset all statistics to zero
+            pet.totalCyclesCompleted = 0
+            pet.currentStreak = 0
+            pet.longestStreak = 0
+            
+            // Reset health and state to initial values
+            pet.health = nil
+            pet.lastHealthUpdate = nil
+            pet.lastLaundryDate = nil
+            pet.currentState = .happy
+            
+            // Save to database
+            try modelContext.save()
+            
+            print("✅ Statistics reset for pet: \(pet.name)")
+            return true
+            
+        } catch {
+            print("❌ Failed to reset pet statistics: \(error.localizedDescription)")
+            return false
         }
     }
     
@@ -181,28 +305,31 @@ final class PetService {
     /// - Parameters:
     ///   - pet: The pet whose health to update
     ///   - newHealth: The new health value (will be clamped to 0-100)
-    func updatePetHealth(_ pet: Pet, newHealth: Int) {
+    /// - Returns: true if update succeeded, false if save error
+    func updatePetHealth(_ pet: Pet, newHealth: Int) -> Bool {
         // Clamp health to valid range (0-100)
         let clampedHealth = max(0, min(100, newHealth))
         
-        // Update pet's health
-        pet.health = clampedHealth
-        pet.lastHealthUpdate = Date()
-        
-        // Update pet state based on health if needed
-        let newState = evaluatePetState(health: clampedHealth)
-        if pet.currentState != newState {
-            pet.currentState = newState
-            print("✅ Pet state changed to \(newState.rawValue) based on health")
-        }
-        
-        // Save to database
         do {
+            // Update pet's health
+            pet.health = clampedHealth
+            pet.lastHealthUpdate = Date()
+            
+            // Update pet state based on health if needed
+            let newState = evaluatePetState(health: clampedHealth)
+            if pet.currentState != newState {
+                pet.currentState = newState
+                print("✅ Pet state changed to \(newState.rawValue) based on health")
+            }
+            
+            // Save to database
             try modelContext.save()
             print("✅ Pet health updated: \(pet.name) -> \(clampedHealth)%")
+            return true
+            
         } catch {
             print("❌ Failed to save pet health: \(error.localizedDescription)")
-            // User-friendly error: "Unable to save health update"
+            return false
         }
     }
     
@@ -210,41 +337,68 @@ final class PetService {
     /// - Parameters:
     ///   - pet: The pet whose state to update
     ///   - newState: The new state for the pet
-    func updatePetState(_ pet: Pet, to newState: PetState) {
-        // Update pet's state
-        pet.currentState = newState
-        
-        // Save to database
+    /// - Returns: true if update succeeded, false if save error
+    func updatePetState(_ pet: Pet, to newState: PetState) -> Bool {
         do {
+            // Update pet's state
+            pet.currentState = newState
+            
+            // Save to database
             try modelContext.save()
             print("✅ Pet state updated: \(pet.name) -> \(newState.rawValue)")
+            return true
+            
         } catch {
             print("❌ Failed to save pet state: \(error.localizedDescription)")
-            // User-friendly error: "Unable to save state change"
+            return false
         }
     }
     
     /// Completes a laundry cycle for the pet, restoring health and updating state
     /// - Parameter pet: The pet who completed a laundry cycle
-    func completeCycle(for pet: Pet) {
-        // Update last laundry date
-        pet.lastLaundryDate = Date()
-        
-        // Reset health to 100%
-        pet.health = 100
-        pet.lastHealthUpdate = Date()
-        
-        // Set state to happy
-        pet.currentState = .happy
-        
-        // Save to database
+    /// - Returns: true if completion succeeded, false if save error
+    func completeCycle(for pet: Pet) -> Bool {
         do {
+            // Update last laundry date
+            pet.lastLaundryDate = Date()
+            
+            // Reset health to 100%
+            pet.health = 100
+            pet.lastHealthUpdate = Date()
+            
+            // Set state to happy
+            pet.currentState = .happy
+            
+            // Update statistics
+            updateCycleStatistics(for: pet)
+            
+            // Save to database
             try modelContext.save()
             print("✅ Cycle completed for pet: \(pet.name)")
+            return true
+            
         } catch {
             print("❌ Failed to save cycle completion: \(error.localizedDescription)")
-            // User-friendly error: "Unable to save cycle completion"
+            return false
         }
+    }
+    
+    /// Updates cycle completion statistics for a pet
+    /// Increments total cycles, manages streaks
+    /// - Parameter pet: The pet whose statistics to update
+    func updateCycleStatistics(for pet: Pet) {
+        // Increment total cycles completed
+        pet.totalCyclesCompleted += 1
+        
+        // Increment current streak
+        pet.currentStreak += 1
+        
+        // Update longest streak if current streak is longer
+        if pet.currentStreak > pet.longestStreak {
+            pet.longestStreak = pet.currentStreak
+        }
+        
+        print("✅ Statistics updated for \(pet.name): Total: \(pet.totalCyclesCompleted), Streak: \(pet.currentStreak)/\(pet.longestStreak)")
     }
     
     // MARK: - Helper Methods

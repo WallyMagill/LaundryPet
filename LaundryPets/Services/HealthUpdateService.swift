@@ -21,6 +21,13 @@ final class HealthUpdateService {
     // MARK: - Health Calculation
     
     /// Calculates current health based on time since last laundry
+    /// Health decays linearly from 100% to 0% over the cycle frequency period
+    /// 
+    /// Examples:
+    /// - 7-day cycle, 0 days elapsed = 100% health
+    /// - 7-day cycle, 3.5 days elapsed = 50% health (halfway through cycle)
+    /// - 7-day cycle, 7 days elapsed = 0% health (cycle complete)
+    /// 
     /// - Parameter pet: The pet whose health to calculate
     /// - Returns: Calculated health value (0-100)
     func calculateCurrentHealth(for pet: Pet) -> Int {
@@ -37,19 +44,16 @@ final class HealthUpdateService {
         print("   Days elapsed: \(String(format: "%.2f", daysElapsed))")
         print("   Cycle frequency: \(pet.cycleFrequencyDays) days")
         
-        // If cycleFrequencyDays is 0, use testing mode (5 minutes = full decay)
-        if pet.cycleFrequencyDays == 0 {
-            let testingMinutes = timeElapsed / 60
-            let decayPercentage = (testingMinutes / 5.0) * 100
-            let health = max(0, 100 - Int(decayPercentage))
-            print("   Testing mode: \(String(format: "%.2f", testingMinutes)) min elapsed -> \(health)% health")
-            return health
+        // Ensure cycleFrequencyDays is valid for calculation
+        guard pet.cycleFrequencyDays > 0 else {
+            print("❌ Invalid cycle frequency: \(pet.cycleFrequencyDays)")
+            return 100 // Return max health if invalid
         }
         
         // Calculate health decay
         // Health decreases proportionally to time elapsed vs cycle frequency
         let decayPercentage = (daysElapsed / Double(pet.cycleFrequencyDays)) * 100
-        let calculatedHealth = max(0, 100 - Int(decayPercentage))
+        let calculatedHealth = max(0, 100 - Int(round(decayPercentage)))
         
         print("   Decay percentage: \(String(format: "%.2f", decayPercentage))%")
         print("   Calculated health: \(calculatedHealth)%")

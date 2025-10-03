@@ -47,7 +47,7 @@ final class PetTimerService: ObservableObject {
     /// Updated every second when timer is active
     @Published var timeRemaining: TimeInterval = 0
     
-    /// Current timer type (wash, dry, or cycle)
+    /// Current timer type (wash, dry, extraDry, or cycle)
     @Published var timerType: SimpleTimerType = .cycle
     
     // MARK: - Configuration
@@ -97,14 +97,23 @@ final class PetTimerService: ObservableObject {
     
     /// Starts a new timer with the specified duration
     /// - Parameters:
-    ///   - duration: Timer duration in seconds
-    ///   - type: Type of timer (wash, dry, or cycle)
+    ///   - duration: Timer duration in seconds (must be positive)
+    ///   - type: Type of timer (wash, dry, extraDry, or cycle)
     func startTimer(duration: TimeInterval, type: SimpleTimerType) {
+        // Validate duration
+        guard duration > 0 else {
+            print("❌ Invalid timer duration: \(duration)s for pet \(petID)")
+            return
+        }
+        
         // Prevent starting if already active
         guard !isActive else {
             print("⚠️ Timer already active for pet \(petID)")
             return
         }
+        
+        // Stop any existing timer first
+        clearTimerState()
         
         // Calculate absolute end time (CRITICAL: absolute time, not relative)
         let now = Date()
@@ -122,13 +131,17 @@ final class PetTimerService: ObservableObject {
         // Start UI update loop
         startUIUpdates()
         
-        print("⏰ Timer started: \(duration)s for pet \(petID)")
+        print("⏰ Timer started: \(type.displayName) for \(duration)s (pet \(petID))")
     }
     
     /// Stops the current timer (user cancellation)
+    /// Clears all timer state and persists the cancellation
     func stopTimer() {
         // Only stop if active
-        guard isActive else { return }
+        guard isActive else {
+            print("⚠️ No active timer to stop for pet \(petID)")
+            return
+        }
         
         // Clear all timer state
         clearTimerState()
@@ -143,12 +156,28 @@ final class PetTimerService: ObservableObject {
         return Date() >= end
     }
     
+    /// Gets the current remaining time for UI display
+    /// - Returns: Remaining time in seconds, or 0 if timer is not active
+    func getRemainingTime() -> TimeInterval {
+        guard let end = endTime else { return 0 }
+        return max(0, end.timeIntervalSinceNow)
+    }
+    
+    /// Gets formatted time string for UI display (MM:SS format)
+    /// - Returns: Formatted time string or "00:00" if not active
+    func getFormattedTime() -> String {
+        let remaining = getRemainingTime()
+        let minutes = Int(remaining) / 60
+        let seconds = Int(remaining) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
+    
     // MARK: - Private Methods: State Management
     
     /// Saves current timer state to UserDefaults for background persistence
     private func saveTimerState() {
         guard let end = endTime else {
-            print("⚠️ Cannot save timer state: no endTime")
+            print("⚠️ Cannot save timer state: no endTime for pet \(petID)")
             return
         }
         
@@ -166,9 +195,11 @@ final class PetTimerService: ObservableObject {
             // Save to UserDefaults with unique key
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
             
-            print("💾 Timer state saved for pet \(petID)")
+            print("💾 Timer state saved: \(timerType.displayName) until \(end) (pet \(petID))")
         } catch {
-            print("❌ Failed to save timer state: \(error.localizedDescription)")
+            print("❌ Failed to save timer state for pet \(petID): \(error.localizedDescription)")
+            // Remove corrupted data
+            UserDefaults.standard.removeObject(forKey: userDefaultsKey)
         }
     }
     
@@ -177,7 +208,7 @@ final class PetTimerService: ObservableObject {
     private func restoreTimerState() {
         // Load data from UserDefaults
         guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
-            print("⚠️ No saved timer state for pet \(petID)")
+            print("ℹ️ No saved timer state for pet \(petID)")
             return
         }
         
@@ -185,11 +216,18 @@ final class PetTimerService: ObservableObject {
             // Decode timer state
             let state = try JSONDecoder().decode(TimerState.self, from: data)
             
+            // Validate petID matches
+            guard state.petID == self.petID else {
+                print("❌ Timer state petID mismatch: expected \(petID), got \(state.petID)")
+                UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+                return
+            }
+            
             let now = Date()
             
             // Check if timer completed while app was closed
             if now >= state.endTime {
-                print("✅ Timer completed while app was closed")
+                print("✅ Timer completed while app was closed: \(state.timerType.displayName)")
                 handleTimerCompletion()
                 return
             }
@@ -203,7 +241,7 @@ final class PetTimerService: ObservableObject {
             // Resume UI updates
             startUIUpdates()
             
-            print("✅ Timer restored for pet \(petID): \(timeRemaining)s remaining")
+            print("✅ Timer restored: \(state.timerType.displayName) with \(Int(timeRemaining))s remaining (pet \(petID))")
             
         } catch {
             print("❌ Corrupted timer data for pet \(petID): \(error.localizedDescription)")
@@ -244,7 +282,7 @@ final class PetTimerService: ObservableObject {
                 guard let self = self else { return }
                 
                 guard let endTime = self.endTime else {
-                    print("❌ No endTime available")
+                    print("❌ No endTime available for pet \(self.petID)")
                     self.clearTimerState()
                     return
                 }
@@ -252,39 +290,42 @@ final class PetTimerService: ObservableObject {
                 // Calculate time remaining
                 let remaining = endTime.timeIntervalSinceNow
                 
-                // CRITICAL FIX: Update on main thread with explicit objectWillChange
-                Task { @MainActor in
-                    self.objectWillChange.send() // Force SwiftUI to notice
-                    self.timeRemaining = max(0, remaining)
-                }
+                // Update published properties on main thread
+                self.timeRemaining = max(0, remaining)
                 
-                print("⏱️ Timer tick - Remaining: \(Int(max(0, remaining)))s")
+                // Debug logging (can be disabled in production)
+                #if DEBUG
+                print("⏱️ Timer tick: \(Int(remaining))s remaining (\(self.timerType.displayName))")
+                #endif
                 
                 // Check for completion
                 if remaining <= 0 {
-                    print("✅ Timer reached zero!")
-                    Task { @MainActor in
-                        self.handleTimerCompletion()
-                    }
+                    print("✅ Timer completed: \(self.timerType.displayName) for pet \(self.petID)")
+                    self.handleTimerCompletion()
                 }
             }
         
-        print("🔄 UI updates started for pet \(petID)")
+        print("🔄 UI updates started for \(timerType.displayName) timer (pet \(petID))")
     }
     
     /// Handles timer completion - posts notification and clears state
     private func handleTimerCompletion() {
-        print("✅ Timer completed for pet \(petID)!")
+        let completedType = timerType.displayName
         
-        // Clear timer state
+        print("✅ Timer completed: \(completedType) for pet \(petID)")
+        
+        // Clear timer state first
         clearTimerState()
         
         // Post notification for ViewModel to handle
         // Include petID so ViewModel can identify which timer completed
         NotificationCenter.default.post(
             name: .timerCompleted,
-            object: petID
+            object: petID,
+            userInfo: ["timerType": timerType.rawValue]
         )
+        
+        print("📢 Timer completion notification posted for pet \(petID)")
     }
     
     // MARK: - Private Methods: App Lifecycle

@@ -55,16 +55,13 @@ final class PetsViewModel: ObservableObject {
     
     // MARK: - Public Methods
     
-    /// Loads all active pets from the database
+    /// Loads all pets from the database
     /// Fetches pets sorted by creation date and updates the @Published pets array
     /// Wraps database operations in do-catch for error handling
     func loadPets() {
         do {
-            // Fetch active pets sorted by creation date (oldest first)
+            // Fetch all pets sorted by creation date (oldest first)
             let descriptor = FetchDescriptor<Pet>(
-                predicate: #Predicate { pet in
-                    pet.isActive == true
-                },
                 sortBy: [SortDescriptor(\.createdDate, order: .forward)]
             )
             
@@ -73,7 +70,7 @@ final class PetsViewModel: ObservableObject {
             // Update published property on main thread
             self.pets = fetchedPets
             
-            print("✅ Loaded \(fetchedPets.count) active pets")
+            print("✅ Loaded \(fetchedPets.count) pets")
             
         } catch {
             // Log error for debugging
@@ -142,6 +139,84 @@ final class PetsViewModel: ObservableObject {
     /// Provides a clean interface for UI refresh operations
     func refreshPets() {
         loadPets()
+    }
+    
+    /// Fetches a single pet by its unique identifier
+    /// - Parameter id: The UUID of the pet to fetch
+    /// - Returns: The Pet instance if found, nil if not found or error occurred
+    func fetchPet(by id: UUID) -> Pet? {
+        return petService.fetchPet(by: id)
+    }
+    
+    /// Updates a pet's name
+    /// - Parameters:
+    ///   - pet: The pet whose name to update
+    ///   - newName: The new name for the pet
+    /// - Returns: true if update succeeded, false if failed
+    @discardableResult
+    func updatePetName(_ pet: Pet, newName: String) -> Bool {
+        let success = petService.updatePetName(pet, newName: newName)
+        
+        if success {
+            // Refresh the pets list to show updated name
+            loadPets()
+        } else {
+            // Set error message
+            self.errorMessage = "Unable to update pet name. Please try again."
+            self.showError = true
+        }
+        
+        return success
+    }
+    
+    /// Updates a pet's settings (cycle frequency, wash duration, dry duration)
+    /// - Parameters:
+    ///   - pet: The pet whose settings to update
+    ///   - cycleFrequencyDays: New cycle frequency (nil to keep current)
+    ///   - washDurationMinutes: New wash duration (nil to keep current)
+    ///   - dryDurationMinutes: New dry duration (nil to keep current)
+    /// - Returns: true if update succeeded, false if failed
+    @discardableResult
+    func updatePetSettings(_ pet: Pet, 
+                          cycleFrequencyDays: Int? = nil,
+                          washDurationMinutes: Int? = nil,
+                          dryDurationMinutes: Int? = nil) -> Bool {
+        let success = petService.updatePetSettings(
+            pet,
+            cycleFrequencyDays: cycleFrequencyDays,
+            washDurationMinutes: washDurationMinutes,
+            dryDurationMinutes: dryDurationMinutes
+        )
+        
+        if success {
+            // Refresh the pets list to show updated settings
+            loadPets()
+        } else {
+            // Set error message
+            self.errorMessage = "Unable to update pet settings. Please try again."
+            self.showError = true
+        }
+        
+        return success
+    }
+    
+    /// Resets a pet's statistics to zero (keeps pet but clears progress)
+    /// - Parameter pet: The pet whose statistics to reset
+    /// - Returns: true if reset succeeded, false if failed
+    @discardableResult
+    func resetPetStatistics(_ pet: Pet) -> Bool {
+        let success = petService.resetPetStatistics(pet)
+        
+        if success {
+            // Refresh the pets list to show reset statistics
+            loadPets()
+        } else {
+            // Set error message
+            self.errorMessage = "Unable to reset pet statistics. Please try again."
+            self.showError = true
+        }
+        
+        return success
     }
     
     // MARK: - Error Handling

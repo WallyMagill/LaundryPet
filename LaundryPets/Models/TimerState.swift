@@ -53,7 +53,7 @@ struct TimerState: Codable {
     /// Always compare this to Date() to get accurate remaining time
     let endTime: Date
     
-    /// Type of timer (wash, dry, or cycle)
+    /// Type of timer (wash, dry, extraDry, or cycle)
     /// Determines notification content and UI presentation
     let timerType: SimpleTimerType
     

@@ -122,14 +122,22 @@ final class LaundryTask {
             washStartTime = now
             
         case .washing:
-            // Move to drying
+            // Move to washComplete (user will manually start dryer)
             washEndTime = now
+            currentStage = .washComplete
+            
+        case .washComplete:
+            // Start drying (user initiated)
             currentStage = .drying
             dryStartTime = now
             
         case .drying:
             // Complete drying
             dryEndTime = now
+            currentStage = .dryComplete
+            
+        case .dryComplete:
+            // Move to completed (user chose to fold)
             currentStage = .completed
             
         case .completed:

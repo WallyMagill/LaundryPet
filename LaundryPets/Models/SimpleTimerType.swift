@@ -15,8 +15,13 @@ enum SimpleTimerType: String, Codable, CaseIterable {
     case wash = "wash"
     
     /// Drying phase timer
-    /// Tracks time in the dryer
+    /// Tracks time in the dryer (initial dry cycle)
     case dry = "dry"
+    
+    /// Extra drying phase timer
+    /// Additional drying time requested by user
+    /// Duration is user-configurable (default: 10 minutes)
+    case extraDry = "extraDry"
     
     /// Full cycle timer
     /// Background timer between laundry sessions
@@ -32,6 +37,8 @@ enum SimpleTimerType: String, Codable, CaseIterable {
             return "Wash"
         case .dry:
             return "Dry"
+        case .extraDry:
+            return "Extra Dry"
         case .cycle:
             return "Full Cycle"
         }
@@ -45,6 +52,8 @@ enum SimpleTimerType: String, Codable, CaseIterable {
             return 45 * 60  // 45 minutes (typical washing machine cycle)
         case .dry:
             return 60 * 60  // 60 minutes (typical dryer cycle)
+        case .extraDry:
+            return 10 * 60  // 10 minutes (user-configurable extra dry time)
         case .cycle:
             return 105 * 60 // 105 minutes (wash + dry combined)
         }

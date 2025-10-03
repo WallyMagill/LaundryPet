@@ -34,10 +34,6 @@ final class Pet {
     /// Used for health decay calculation
     var lastLaundryDate: Date?
     
-    /// Whether pet is active in the system
-    /// Soft delete: isActive = false instead of hard delete
-    var isActive: Bool
-    
     // MARK: - Health System
     
     /// Current health level (0-100)
@@ -107,7 +103,6 @@ final class Pet {
         // Automatic properties
         self.id = UUID()
         self.createdDate = Date()
-        self.isActive = true
         self.currentState = .happy
         
         // Required properties

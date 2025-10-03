@@ -137,6 +137,64 @@ final class SettingsViewModel: ObservableObject {
         saveSettings()
     }
     
+    /// Resets all settings to their default values
+    /// - Returns: true if reset succeeded, false if failed
+    @discardableResult
+    func resetToDefaults() -> Bool {
+        guard let settings = settings else {
+            print("❌ Cannot reset settings: settings is nil")
+            errorMessage = "Unable to reset settings. Please restart the app."
+            showError = true
+            return false
+        }
+        
+        // Reset to default values
+        settings.notificationsEnabled = true
+        settings.soundEnabled = true
+        settings.hapticsEnabled = true
+        settings.appearanceMode = .system
+        
+        do {
+            try modelContext.save()
+            print("✅ Settings reset to defaults successfully")
+            return true
+            
+        } catch {
+            print("❌ Failed to reset settings: \(error)")
+            errorMessage = "Unable to reset settings. Please try again."
+            showError = true
+            return false
+        }
+    }
+    
+    /// Refreshes settings from the database
+    /// Useful when settings might have been updated elsewhere
+    /// - Returns: true if refresh succeeded, false if failed
+    @discardableResult
+    func refreshSettings() -> Bool {
+        do {
+            let descriptor = FetchDescriptor<AppSettings>()
+            let existingSettings = try modelContext.fetch(descriptor)
+            
+            if let settings = existingSettings.first {
+                self.settings = settings
+                print("✅ Settings refreshed successfully")
+                return true
+            } else {
+                print("❌ No settings found during refresh")
+                errorMessage = "Settings not found. Please restart the app."
+                showError = true
+                return false
+            }
+            
+        } catch {
+            print("❌ Failed to refresh settings: \(error)")
+            errorMessage = "Unable to refresh settings. Please restart the app."
+            showError = true
+            return false
+        }
+    }
+    
     // MARK: - Private Methods
     
     /// Saves the current settings to the database
