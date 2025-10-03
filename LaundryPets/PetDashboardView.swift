@@ -157,7 +157,8 @@ struct PetDashboardView: View {
                         PetCardView(
                             pet: pet, 
                             modelContext: modelContext, 
-                            petViewModel: petsViewModel.getPetViewModel(for: pet)
+                            petViewModel: petsViewModel.getPetViewModel(for: pet),
+                            petsViewModel: petsViewModel
                         )
                     }
                 }

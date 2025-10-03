@@ -258,10 +258,20 @@ final class PetViewModel: ObservableObject {
             return
         }
         
+        // Update ViewModel published properties
         self.healthPercentage = newHealth
         self.petState = newState
         
-        // Health display updated
+        // CRITICAL FIX: Save health and state back to the pet model
+        // This ensures the pet.health property stays in sync
+        _ = petService.updatePetHealth(pet, newHealth: newHealth)
+        if pet.currentState != newState {
+            _ = petService.updatePetState(pet, to: newState)
+        }
+        
+        #if DEBUG
+        print("💓 Health updated for \(pet.name): \(newHealth)% (\(newState.rawValue))")
+        #endif
     }
     
     /// Handles timer completion events and transitions between stages

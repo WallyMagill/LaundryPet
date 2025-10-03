@@ -15,19 +15,21 @@ struct PetCardView: View {
     let pet: Pet
     let modelContext: ModelContext
     @ObservedObject var petViewModel: PetViewModel
+    let petsViewModel: PetsViewModel
     
     // MARK: - Initialization
     
-    init(pet: Pet, modelContext: ModelContext, petViewModel: PetViewModel) {
+    init(pet: Pet, modelContext: ModelContext, petViewModel: PetViewModel, petsViewModel: PetsViewModel) {
         self.pet = pet
         self.modelContext = modelContext
         self.petViewModel = petViewModel
+        self.petsViewModel = petsViewModel
     }
     
     // MARK: - Body
     
     var body: some View {
-        NavigationLink(destination: PetDetailView(pet: pet, modelContext: modelContext, petViewModel: petViewModel)) {
+        NavigationLink(destination: PetDetailView(pet: pet, modelContext: modelContext, petViewModel: petViewModel, petsViewModel: petsViewModel)) {
             cardContent
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
@@ -271,7 +273,8 @@ struct PetCardView: View {
     let modelContext = ModelContext(try! ModelContainer(for: Pet.self, LaundryTask.self, AppSettings.self))
     let samplePet = Pet(name: "Fluffy", cycleFrequencyDays: 7)
     let petViewModel = PetViewModel(pet: samplePet, modelContext: modelContext)
+    let petsViewModel = PetsViewModel(modelContext: modelContext)
     
-    return PetCardView(pet: samplePet, modelContext: modelContext, petViewModel: petViewModel)
+    PetCardView(pet: samplePet, modelContext: modelContext, petViewModel: petViewModel, petsViewModel: petsViewModel)
         .padding()
 }

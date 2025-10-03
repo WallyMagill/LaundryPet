@@ -280,8 +280,8 @@ final class PetTimerService: ObservableObject {
         // Cancel any existing timer
         timerCancellable?.cancel()
         
-        // CRITICAL FIX: Throttle timer updates to 2 seconds to reduce CPU usage
-        timerCancellable = Timer.publish(every: 2.0, on: .main, in: .common)
+        // Timer updates every second for smooth countdown when active
+        timerCancellable = Timer.publish(every: 1.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
