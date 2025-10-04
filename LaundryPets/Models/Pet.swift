@@ -47,6 +47,12 @@ final class Pet {
     /// Used to prevent redundant calculations
     var lastHealthUpdate: Date?
     
+    /// Health notification levels that have been sent
+    /// Tracks which thresholds (25%, 10%, 5%, 0%) have triggered notifications
+    /// Prevents duplicate notifications when health hovers around a threshold
+    /// Optional to support migration from existing data
+    var sentHealthNotifications: [Int]?
+    
     // MARK: - Statistics
     
     /// Total laundry cycles completed (lifetime)
@@ -122,6 +128,9 @@ final class Pet {
         self.lastLaundryDate = nil
         self.health = nil
         self.lastHealthUpdate = nil
+        
+        // Health notification tracking (starts empty)
+        self.sentHealthNotifications = []
     }
     
     // MARK: - Validation
@@ -170,6 +179,38 @@ final class Pet {
     func updateHealth(_ newHealth: Int) {
         self.health = max(0, min(100, newHealth))
         self.lastHealthUpdate = Date()
+    }
+    
+    // MARK: - Health Notification Management
+    
+    /// Checks if a health notification has been sent for a specific threshold
+    /// - Parameter healthLevel: The health threshold level (25, 10, 5, 0)
+    /// - Returns: true if notification was already sent, false otherwise
+    func hasHealthNotificationBeenSent(for healthLevel: Int) -> Bool {
+        return sentHealthNotifications?.contains(healthLevel) ?? false
+    }
+    
+    /// Marks a health notification as sent for a specific threshold
+    /// - Parameter healthLevel: The health threshold level (25, 10, 5, 0)
+    func markHealthNotificationAsSent(for healthLevel: Int) {
+        if sentHealthNotifications == nil {
+            sentHealthNotifications = []
+        }
+        if !sentHealthNotifications!.contains(healthLevel) {
+            sentHealthNotifications!.append(healthLevel)
+        }
+    }
+    
+    /// Resets all health notification tracking (called when health improves)
+    func resetHealthNotificationTracking() {
+        sentHealthNotifications?.removeAll()
+    }
+    
+    /// Clears health notification tracking for a specific threshold
+    /// Called when health improves past a threshold
+    /// - Parameter healthLevel: The health threshold level to clear
+    func clearHealthNotificationTracking(for healthLevel: Int) {
+        sentHealthNotifications?.removeAll { $0 == healthLevel }
     }
 }
 

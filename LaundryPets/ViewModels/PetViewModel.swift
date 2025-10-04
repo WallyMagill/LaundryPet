@@ -42,6 +42,9 @@ final class PetViewModel: ObservableObject {
     /// Service for health calculations and state evaluation
     private let healthUpdateService: HealthUpdateService
     
+    /// Service for managing notifications
+    private let notificationService: NotificationService
+    
     /// SwiftData model context for database operations
     private let modelContext: ModelContext
     
@@ -98,6 +101,7 @@ final class PetViewModel: ObservableObject {
         // Create services with the provided context
         self.petService = PetService(modelContext: modelContext)
         self.healthUpdateService = HealthUpdateService.shared
+        self.notificationService = NotificationService.shared
         
         // ⚠️ CRITICAL: Create OWN timer service instance for this pet!
         self.timerService = PetTimerService(petID: pet.id)
@@ -108,6 +112,9 @@ final class PetViewModel: ObservableObject {
         setupTimerCompletionObservation()
         loadCurrentTask()
         updateHealthDisplay()
+        
+        // Schedule proactive health notifications
+        scheduleProactiveHealthNotifications()
     }
     
     deinit {
@@ -251,6 +258,7 @@ final class PetViewModel: ObservableObject {
     /// Updates health display by recalculating current health and state
     /// Called by health update broadcasts and manual updates
     private func updateHealthDisplay() {
+        let oldHealth = healthPercentage
         let (newHealth, newState) = healthUpdateService.updateHealthAndState(for: pet)
         
         // Only update if values have actually changed to prevent unnecessary UI updates
@@ -262,6 +270,9 @@ final class PetViewModel: ObservableObject {
         self.healthPercentage = newHealth
         self.petState = newState
         
+        // 🆕 Handle health-based notifications
+        handleHealthNotifications(oldHealth: oldHealth, newHealth: newHealth)
+        
         // CRITICAL FIX: Save health and state back to the pet model
         // This ensures the pet.health property stays in sync
         _ = petService.updatePetHealth(pet, newHealth: newHealth)
@@ -272,6 +283,77 @@ final class PetViewModel: ObservableObject {
         #if DEBUG
         print("💓 Health updated for \(pet.name): \(newHealth)% (\(newState.rawValue))")
         #endif
+    }
+    
+    /// Handles health-based notifications when health crosses thresholds
+    /// - Parameters:
+    ///   - oldHealth: Previous health level
+    ///   - newHealth: New health level
+    private func handleHealthNotifications(oldHealth: Int, newHealth: Int) {
+        let thresholds = [25, 10, 5, 0]
+        
+        for threshold in thresholds {
+            // Health crossed threshold downward
+            if oldHealth > threshold && newHealth <= threshold {
+                // Only schedule if we haven't already sent this notification
+                if !pet.hasHealthNotificationBeenSent(for: threshold) {
+                    scheduleHealthNotification(for: threshold)
+                    pet.markHealthNotificationAsSent(for: threshold)
+                }
+            }
+            // Health improved past threshold
+            else if oldHealth <= threshold && newHealth > threshold {
+                // Cancel the notification and reset tracking
+                notificationService.cancelSpecificHealthNotification(for: pet.id, healthLevel: threshold)
+                pet.clearHealthNotificationTracking(for: threshold)
+            }
+        }
+    }
+    
+    /// Schedules a health notification for a specific threshold
+    /// - Parameter threshold: Health threshold level (25, 10, 5, 0)
+    private func scheduleHealthNotification(for threshold: Int) {
+        // Calculate when this notification should trigger
+        // For now, we'll schedule it immediately since health has already crossed the threshold
+        let triggerDate = Date().addingTimeInterval(1) // 1 second delay
+        
+        notificationService.scheduleHealthWarning(
+            for: pet.id,
+            petName: pet.name,
+            healthLevel: threshold,
+            triggerDate: triggerDate
+        )
+    }
+    
+    /// Schedules proactive health notifications based on current health and cycle frequency
+    /// Called when pet is created or when app returns from background
+    private func scheduleProactiveHealthNotifications() {
+        let referenceDate = pet.lastLaundryDate ?? pet.createdDate
+        let currentHealth = healthUpdateService.calculateCurrentHealth(for: pet)
+        
+        notificationService.scheduleProactiveHealthNotifications(
+            for: pet.id,
+            petName: pet.name,
+            currentHealth: currentHealth,
+            cycleFrequencyDays: pet.cycleFrequencyDays,
+            referenceDate: referenceDate
+        )
+    }
+    
+    /// Requests notification permission if not already determined
+    /// Called before starting timers to ensure notifications work
+    private func requestNotificationPermissionIfNeeded() async {
+        guard notificationService.permissionStatus == .notDetermined else {
+            return // Permission already handled
+        }
+        
+        let granted = await notificationService.requestPermission()
+        
+        if !granted {
+            #if DEBUG
+            print("⚠️ Notification permission denied - timers will work but no notifications")
+            #endif
+        }
     }
     
     /// Handles timer completion events and transitions between stages
@@ -370,6 +452,18 @@ final class PetViewModel: ObservableObject {
             return
         }
         
+        // Request notification permission if needed
+        Task {
+            await requestNotificationPermissionIfNeeded()
+            
+            await MainActor.run {
+                self.startWashTimer(task: task)
+            }
+        }
+    }
+    
+    /// Internal method to start wash timer after permission check
+    private func startWashTimer(task: LaundryTask) {
         do {
             // Update task to washing stage
             task.currentStage = .washing
@@ -381,6 +475,14 @@ final class PetViewModel: ObservableObject {
             // Start wash timer
             let washDuration = TimeInterval(pet.washDurationMinutes * 60)
             timerService.startTimer(duration: washDuration, type: .wash)
+            
+            // Schedule wash completion notification
+            notificationService.scheduleTimerNotification(
+                petID: pet.id,
+                petName: pet.name,
+                timerType: .wash,
+                timeInterval: washDuration
+            )
             
             #if DEBUG
             print("✅ Started wash for \(pet.name): \(pet.washDurationMinutes) minutes")
@@ -410,6 +512,18 @@ final class PetViewModel: ObservableObject {
             return
         }
         
+        // Request notification permission if needed
+        Task {
+            await requestNotificationPermissionIfNeeded()
+            
+            await MainActor.run {
+                self.startDryTimer(task: task)
+            }
+        }
+    }
+    
+    /// Internal method to start dry timer after permission check
+    private func startDryTimer(task: LaundryTask) {
         do {
             // Update task to drying stage
             task.currentStage = .drying
@@ -422,6 +536,14 @@ final class PetViewModel: ObservableObject {
             // Start dry timer
             let dryDuration = TimeInterval(pet.dryDurationMinutes * 60)
             timerService.startTimer(duration: dryDuration, type: .dry)
+            
+            // Schedule dry completion notification
+            notificationService.scheduleTimerNotification(
+                petID: pet.id,
+                petName: pet.name,
+                timerType: .dry,
+                timeInterval: dryDuration
+            )
             
             #if DEBUG
             print("✅ Started dry for \(pet.name): \(pet.dryDurationMinutes) minutes")
@@ -471,6 +593,10 @@ final class PetViewModel: ObservableObject {
             // Clear current task (cycle complete)
             self.currentTask = nil
             
+            // Reset health notification tracking since health improved
+            pet.resetHealthNotificationTracking()
+            notificationService.resetHealthNotifications(for: pet.id, petName: pet.name, currentHealth: 100)
+            
             // Update health display
             updateHealthDisplay()
             
@@ -494,6 +620,9 @@ final class PetViewModel: ObservableObject {
     func cancelTimer() {
         // Stop the timer
         timerService.stopTimer()
+        
+        // Cancel any pending timer notifications
+        notificationService.cancelAllTimerNotifications(for: pet.id)
         
         // Reset task state if exists
         if let task = currentTask {
@@ -552,6 +681,14 @@ final class PetViewModel: ObservableObject {
             // Start additional dry timer
             let additionalDuration = TimeInterval(additionalMinutes * 60)
             timerService.startTimer(duration: additionalDuration, type: .extraDry)
+            
+            // Schedule extra dry completion notification
+            notificationService.scheduleTimerNotification(
+                petID: pet.id,
+                petName: pet.name,
+                timerType: .extraDry,
+                timeInterval: additionalDuration
+            )
             
             #if DEBUG
             print("✅ Added \(additionalMinutes) more dry minutes for \(pet.name)")

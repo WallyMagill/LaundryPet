@@ -44,6 +44,9 @@ final class PetsViewModel: ObservableObject {
     /// Handles all database interactions with proper error handling
     private let petService: PetService
     
+    /// Service for managing notifications and badge counts
+    private let notificationService: NotificationService
+    
     /// Combine cancellable for pet state update notifications
     private var petStateUpdateCancellable: AnyCancellable?
     
@@ -54,8 +57,9 @@ final class PetsViewModel: ObservableObject {
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
         
-        // Create pet service with the provided context
+        // Create services with the provided context
         self.petService = PetService(modelContext: modelContext)
+        self.notificationService = NotificationService.shared
         
         // Load pets immediately on initialization
         loadPets()
@@ -122,6 +126,9 @@ final class PetsViewModel: ObservableObject {
             
             // Update published property on main thread
             self.pets = fetchedPets
+            
+            // Update app badge count based on pets needing attention
+            notificationService.updateAppBadge(pets: fetchedPets)
             
             // Pets loaded successfully (debug logging removed for performance)
             
