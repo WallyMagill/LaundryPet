@@ -74,7 +74,7 @@ final class Pet {
     
     /// How often this pet needs laundry (in days)
     /// Minimum: 1 day
-    /// Maximum: 30 days
+    /// Maximum: 99 days
     /// Default: 7 days (weekly laundry)
     /// Affects health decay rate
     var cycleFrequencyDays: Int
@@ -87,7 +87,7 @@ final class Pet {
     
     /// Dry timer duration (in minutes)
     /// Default: 60 minutes (typical dryer)
-    /// Range: 1-180 minutes
+    /// Range: 1-120 minutes
     /// INDEPENDENT per pet (not global setting!)
     var dryDurationMinutes: Int
     
@@ -96,15 +96,15 @@ final class Pet {
     /// Creates a new pet with required and optional parameters
     /// - Parameters:
     ///   - name: Pet's name (must not be empty)
-    ///   - cycleFrequencyDays: How often pet needs laundry in days (1-30, default 7)
+    ///   - cycleFrequencyDays: How often pet needs laundry in days (1-99, default 7)
     init(name: String, cycleFrequencyDays: Int = 7) {
         // Validate name
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         precondition(!trimmedName.isEmpty, "Pet name cannot be empty")
         
         // Validate cycle frequency
-        precondition((1...30).contains(cycleFrequencyDays), 
-                    "Cycle frequency must be between 1-30 days")
+        precondition((1...99).contains(cycleFrequencyDays), 
+                    "Cycle frequency must be between 1-99 days")
         
         // Automatic properties
         self.id = UUID()
@@ -144,7 +144,7 @@ final class Pet {
         }
         
         // Validate cycle frequency
-        guard (1...30).contains(cycleFrequencyDays) else {
+        guard (1...99).contains(cycleFrequencyDays) else {
             return false
         }
         
@@ -160,7 +160,7 @@ final class Pet {
             return false
         }
         
-        guard (1...180).contains(dryDurationMinutes) else {
+        guard (1...120).contains(dryDurationMinutes) else {
             return false
         }
         

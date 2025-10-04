@@ -39,12 +39,13 @@ struct AddPetView: View {
                 
                 Section(header: Text("Laundry Schedule"), footer: Text("How often this pet needs laundry. Shorter cycles mean more frequent care.")) {
                     Picker("Cycle Frequency", selection: $cycleFrequency) {
-                        ForEach(1...30, id: \.self) { days in
+                        ForEach(1...99, id: \.self) { days in
                             Text(days == 1 ? "1 day" : "\(days) days")
                                 .tag(days)
                         }
                     }
-                    .pickerStyle(.menu)
+                    .pickerStyle(.wheel)
+                    .frame(height: 100)
                 }
                 
                 Section(footer: Text("Your pet will start with 100% health and will need laundry care based on the schedule you set.")) {

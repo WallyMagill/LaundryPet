@@ -65,17 +65,21 @@ struct PetSettingsView: View {
                     header: Text("Laundry Schedule"),
                     footer: Text("How often this pet needs laundry. Shorter cycles mean more frequent care.")
                 ) {
-                    HStack {
-                        Image(systemName: "repeat")
-                            .foregroundColor(.orange)
-                        Text("Cycle Frequency")
-                        Spacer()
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "repeat")
+                                .foregroundColor(.orange)
+                            Text("Cycle Frequency")
+                            Spacer()
+                        }
+                        
                         Picker("", selection: $settingsViewModel.cycleFrequencyDays) {
-                            ForEach(1...30, id: \.self) { days in
+                            ForEach(1...99, id: \.self) { days in
                                 Text("\(days) day\(days == 1 ? "" : "s")").tag(days)
                             }
                         }
-                        .pickerStyle(.menu)
+                        .pickerStyle(.wheel)
+                        .frame(height: 100)
                         .onChange(of: settingsViewModel.cycleFrequencyDays) { _, newValue in
                             settingsViewModel.updateCycleFrequency(newValue)
                         }
@@ -88,34 +92,42 @@ struct PetSettingsView: View {
                     footer: Text("Customize how long each stage takes. These settings affect new laundry cycles.")
                 ) {
                     // Wash Duration
-                    HStack {
-                        Image(systemName: "washer")
-                            .foregroundColor(.blue)
-                        Text("Wash Duration")
-                        Spacer()
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "washer")
+                                .foregroundColor(.blue)
+                            Text("Wash Duration")
+                            Spacer()
+                        }
+                        
                         Picker("", selection: $settingsViewModel.washDurationMinutes) {
-                            ForEach(Array(stride(from: 5, through: 120, by: 5)), id: \.self) { minutes in
+                            ForEach(1...120, id: \.self) { minutes in
                                 Text("\(minutes) min").tag(minutes)
                             }
                         }
-                        .pickerStyle(.menu)
+                        .pickerStyle(.wheel)
+                        .frame(height: 100)
                         .onChange(of: settingsViewModel.washDurationMinutes) { _, newValue in
                             settingsViewModel.updateWashDuration(newValue)
                         }
                     }
                     
                     // Dry Duration
-                    HStack {
-                        Image(systemName: "fan")
-                            .foregroundColor(.orange)
-                        Text("Dry Duration")
-                        Spacer()
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "fan")
+                                .foregroundColor(.orange)
+                            Text("Dry Duration")
+                            Spacer()
+                        }
+                        
                         Picker("", selection: $settingsViewModel.dryDurationMinutes) {
-                            ForEach(Array(stride(from: 10, through: 180, by: 10)), id: \.self) { minutes in
+                            ForEach(1...120, id: \.self) { minutes in
                                 Text("\(minutes) min").tag(minutes)
                             }
                         }
-                        .pickerStyle(.menu)
+                        .pickerStyle(.wheel)
+                        .frame(height: 100)
                         .onChange(of: settingsViewModel.dryDurationMinutes) { _, newValue in
                             settingsViewModel.updateDryDuration(newValue)
                         }

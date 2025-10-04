@@ -171,7 +171,7 @@ struct PetCardView: View {
             case .washing:
                 return .blue
             case .washComplete:
-                return .green
+                return .yellow
             case .drying:
                 return .orange
             case .dryComplete:
@@ -227,7 +227,7 @@ struct PetCardView: View {
             case .washing:
                 return .blue
             case .washComplete:
-                return .green
+                return .yellow
             case .drying:
                 return .orange
             case .dryComplete:

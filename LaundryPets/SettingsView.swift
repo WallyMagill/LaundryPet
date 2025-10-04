@@ -50,8 +50,7 @@ struct SettingsView: View {
                     Picker("Appearance", selection: Binding(
                         get: { settingsViewModel.settings?.appearanceMode ?? .system },
                         set: { newValue in
-                            settingsViewModel.settings?.appearanceMode = newValue
-                            settingsViewModel.saveSettings()
+                            settingsViewModel.updateAppearanceMode(newValue)
                         }
                     )) {
                         ForEach(AppearanceMode.allCases, id: \.self) { mode in

@@ -28,7 +28,7 @@ struct TimerDisplayView: View, Equatable {
         if isActive {
             Text(formatTime(timeRemaining))
                 .font(.system(size: 32, weight: .bold, design: .rounded))
-                .foregroundColor(.blue)
+                .foregroundColor(.accentColor)
                 .monospacedDigit()
                 .drawingGroup() // Rasterize for better performance
         }

@@ -31,7 +31,7 @@ struct PetDashboardView: View {
         NavigationView {
             ZStack {
                 // Background
-                Color(UIColor.systemGroupedBackground)
+                Color(.systemGroupedBackground)
                     .ignoresSafeArea()
                 
                 ScrollView {
@@ -102,47 +102,42 @@ struct PetDashboardView: View {
                 .controlSize(.regular)
                 .font(.system(size: 16, weight: .medium))
                 .foregroundColor(.white)
-                .background(Color.blue)
+                .background(.blue)
                 .cornerRadius(8)
                 .frame(height: 32)
                 .frame(minWidth: 80)
                 
-                Spacer(minLength: 16)
+                Spacer()
                 
                 // Right: Settings Button
                 Button(action: {
                     showingSettings = true
                 }) {
                     Image(systemName: "gear")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.primary)
-                        .frame(width: 44, height: 44)
-                        .background(Color.clear)
-                        .contentShape(Rectangle())
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.blue)
                 }
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 16)
-            .frame(height: 44)
+            .padding(.top, 16)
+            .frame(height: 52)
             
-            // App Title Section with enhanced styling
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Laundry Time")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
-                    
-                    Text("Keep your pets happy and healthy")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
+            // App Title Section - Centered with cool font
+            VStack(spacing: 4) {
+                Text("Laundry Pets")
+                    .font(.system(size: 36, weight: .heavy, design: .rounded))
+                    .foregroundColor(.primary)
+                
+                Text("Keep your pets happy and healthy")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.secondary)
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+            .padding(.top, 16)
+            .padding(.bottom, 16)
         }
-        .frame(height: 80) // Total header height
+        .frame(height: 96) // Total header height (increased for better spacing)
     }
     
     // MARK: - Pet Cards Section
@@ -282,9 +277,74 @@ struct PetDashboardView: View {
     
     // MARK: - Computed Properties
     
-    /// Pets sorted by creation date (oldest first)
+    /// Pets sorted by priority: Washing → Move to Dryer → Drying → Fold/Extra Dry → Health
     private var sortedPets: [Pet] {
-        petsViewModel.pets.sorted { $0.createdDate < $1.createdDate }
+        petsViewModel.pets.sorted { pet1, pet2 in
+            let priority1 = getPetPriority(pet1)
+            let priority2 = getPetPriority(pet2)
+            
+            // If different priority levels, sort by priority
+            if priority1.level != priority2.level {
+                return priority1.level.rawValue < priority2.level.rawValue
+            }
+            
+            // If same priority level, sort by health (lower health = higher priority)
+            return priority1.health < priority2.health
+        }
+    }
+    
+    /// Gets the priority information for a pet
+    private func getPetPriority(_ pet: Pet) -> (level: PetPriority, health: Int) {
+        let health = HealthUpdateService.shared.calculateCurrentHealth(for: pet)
+        
+        // Get current task stage if exists
+        let currentTask = getCurrentTask(for: pet)
+        let currentStage = currentTask?.currentStage ?? .cycle
+        
+        let priority: PetPriority
+        
+        switch currentStage {
+        case .washing:
+            priority = .washing
+        case .washComplete:
+            priority = .moveToDryer
+        case .drying:
+            priority = .drying
+        case .dryComplete:
+            priority = .foldOrExtraDry
+        case .completed:
+            priority = .completed
+        case .cycle:
+            // No active task - prioritize by health
+            priority = .healthBased
+        }
+        
+        return (priority, health)
+    }
+    
+    /// Gets the current task for a pet (helper method)
+    private func getCurrentTask(for pet: Pet) -> LaundryTask? {
+        do {
+            let descriptor = FetchDescriptor<LaundryTask>(
+                sortBy: [SortDescriptor(\.startDate, order: .reverse)]
+            )
+            let allTasks = try modelContext.fetch(descriptor)
+            return allTasks.first { task in
+                task.petID == pet.id && !task.isCompleted
+            }
+        } catch {
+            return nil
+        }
+    }
+    
+    /// Priority levels for pet sorting
+    private enum PetPriority: Int, CaseIterable {
+        case washing = 0           // Highest priority
+        case moveToDryer = 1       // Ready to move to dryer
+        case drying = 2            // Currently drying
+        case foldOrExtraDry = 3    // Ready to fold or add more dry time
+        case healthBased = 4       // No active task, sort by health
+        case completed = 5         // Task completed (lowest priority)
     }
     
     /// Best streak across all pets

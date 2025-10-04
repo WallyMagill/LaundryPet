@@ -277,17 +277,18 @@ struct PetDetailView: View {
                                 )
                         }
                         
-                        HStack {
+                        VStack(alignment: .leading, spacing: 8) {
                             Text("Extra Dry Time")
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(.primary)
-                            Spacer()
+                            
                             Picker("", selection: $selectedExtraDryTime) {
-                                ForEach(Array(stride(from: 5, through: 60, by: 5)), id: \.self) { minutes in
+                                ForEach(1...120, id: \.self) { minutes in
                                     Text("\(minutes) min").tag(minutes)
                                 }
                             }
-                            .pickerStyle(.menu)
+                            .pickerStyle(.wheel)
+                            .frame(height: 100)
                         }
                     }
                 }

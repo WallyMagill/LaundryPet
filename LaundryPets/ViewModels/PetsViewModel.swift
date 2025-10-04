@@ -10,6 +10,7 @@ import Foundation
 import SwiftData
 import SwiftUI
 import Combine
+import UIKit
 
 /// ViewModel responsible for managing the collection of pets
 /// Provides reactive UI updates and handles all pet-related database operations
@@ -50,6 +51,9 @@ final class PetsViewModel: ObservableObject {
     /// Combine cancellable for pet state update notifications
     private var petStateUpdateCancellable: AnyCancellable?
     
+    /// Combine cancellable for periodic dashboard updates
+    private var periodicUpdateCancellable: AnyCancellable?
+    
     // MARK: - Initialization
     
     /// Creates a new PetsViewModel with the provided model context
@@ -66,6 +70,15 @@ final class PetsViewModel: ObservableObject {
         
         // Set up pet state update notifications
         setupPetStateUpdateObservation()
+        
+        // Set up periodic dashboard updates as safety net
+        setupPeriodicDashboardUpdates()
+    }
+    
+    deinit {
+        // Clean up all cancellables to prevent memory leaks
+        petStateUpdateCancellable?.cancel()
+        periodicUpdateCancellable?.cancel()
     }
     
     // MARK: - PetViewModel Management
@@ -110,17 +123,39 @@ final class PetsViewModel: ObservableObject {
         #endif
     }
     
+    /// Sets up periodic dashboard updates as a safety net
+    /// Refreshes dashboard every hour to ensure data consistency
+    private func setupPeriodicDashboardUpdates() {
+        // Hourly dashboard refresh as safety net for data consistency
+        periodicUpdateCancellable = Timer.publish(every: 3600, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                // Only update if app is active to save battery
+                guard UIApplication.shared.applicationState == .active else {
+                    return
+                }
+                
+                self?.loadPets()
+                
+                #if DEBUG
+                print("🔄 Periodic dashboard refresh (hourly)")
+                #endif
+            }
+        
+        #if DEBUG
+        print("✅ Periodic dashboard updates setup (hourly)")
+        #endif
+    }
+    
     // MARK: - Public Methods
     
     /// Loads all pets from the database
-    /// Fetches pets sorted by creation date and updates the @Published pets array
+    /// Fetches pets and updates the @Published pets array (sorting done at view level)
     /// Wraps database operations in do-catch for error handling
     func loadPets() {
         do {
-            // Fetch all pets sorted by creation date (oldest first)
-            let descriptor = FetchDescriptor<Pet>(
-                sortBy: [SortDescriptor(\.createdDate, order: .forward)]
-            )
+            // Fetch all pets (no database sorting - done at view level)
+            let descriptor = FetchDescriptor<Pet>()
             
             let fetchedPets = try modelContext.fetch(descriptor)
             

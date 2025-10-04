@@ -389,7 +389,17 @@ final class NotificationService: ObservableObject {
     
     /// Update app icon badge count
     func updateBadgeCount(_ count: Int) {
-        UIApplication.shared.applicationIconBadgeNumber = count
+        if #available(iOS 16.0, *) {
+            // Use modern UNUserNotificationCenter API
+            center.setBadgeCount(count) { error in
+                if let error = error {
+                    print("❌ Failed to update badge count: \(error)")
+                }
+            }
+        } else {
+            // Fallback for older iOS versions
+            UIApplication.shared.applicationIconBadgeNumber = count
+        }
     }
     
     /// Clear app icon badge

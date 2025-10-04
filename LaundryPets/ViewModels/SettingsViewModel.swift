@@ -111,6 +111,10 @@ final class SettingsViewModel: ObservableObject {
         
         settings.appearanceMode = mode
         saveSettings()
+        
+        // Notify the app that appearance mode has changed
+        NotificationCenter.default.post(name: .appearanceModeChanged, object: nil)
+        print("✅ Appearance mode changed to: \(mode.displayName)")
     }
     
     /// Updates the sounds enabled setting
